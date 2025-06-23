@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/prisma/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -- ENUMERATIONS
+enum RolUsuario {
+  ADMIN
+  TECNICO
+  VISOR
+}
+
+enum ProtocoloStream {
+  RTMP
+  SRT
+}
+
+enum ProtocoloSalida {
+  RTMP
+  SRT
+  HLS
+}
+
+// -- MODELS
+model Usuario {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  rol         RolUsuario @default(TECNICO)
+  secreto2FA  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  registrosAuditoria RegistroAuditoria[]
+}
+
+model EntradaStream {
+  id              String   @id @default(cuid())
+  nombre          String
+  protocolo       ProtocoloStream
+  
+  // RTMP specific
+  claveStream     String?  @unique
+  
+  // SRT specific
+  puertoSRT       Int?     @unique
+  latenciaSRT     Int?     @default(120) // ms
+  passphraseSRT   String?
+  streamId        String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salidas         SalidaStream[]
+}
+
+model SalidaStream {
+  id              String   @id @default(cuid())
+  nombre          String
+  habilitada      Boolean  @default(true)
+  protocolo       ProtocoloSalida
+  
+  // Foreign Key
+  entradaId       String
+  entrada         EntradaStream @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+
+  // Destination URL (for RTMP/SRT push, or HLS manifest path)
+  urlDestino      String?
+  
+  // RTMP specific
+  claveStreamRTMP String?
+  
+  // SRT specific
+  puertoSRT       Int?
+  passphraseSRT   String?
+  latenciaSRT     Int?     @default(120)
+  
+  // HLS specific
+  segmentDuration Int?     @default(6) // seconds
+  playlistLength  Int?     @default(5) // number of segments
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model RegistroAuditoria {
+  id          String   @id @default(cuid())
+  accion      String
+  detalles    Json?
+  
+  // Foreign Key
+  usuarioId   String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+
+  createdAt   DateTime @default(now())
+}

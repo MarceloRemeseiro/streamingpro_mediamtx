@@ -1,0 +1,18 @@
+{
+  "name": "streamingpro-restreamer-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Monorepo for the StreamingPro Restreamer platform",
+  "main": "index.js",
+  "scripts": {
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.7"
+  }
+}

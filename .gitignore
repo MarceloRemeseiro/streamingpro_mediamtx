@@ -1,0 +1,172 @@
+# ===== DEPENDENCIAS =====
+node_modules/
+.pnp
+.pnp.js
+
+# ===== BUILDS Y DISTRIBUCIÓN =====
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# ===== LOGS =====
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===== VARIABLES DE ENTORNO =====
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.test
+
+# ===== PRISMA GENERADOS =====
+apps/backend/src/prisma/generated/
+apps/backend/generated/
+**/prisma/generated/
+**/generated/
+
+# ===== BASES DE DATOS LOCALES =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== COVERAGE Y TESTING =====
+coverage/
+.nyc_output
+.coverage/
+*.lcov
+
+# ===== CACHE =====
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ===== EDITORES =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== SISTEMA OPERATIVO =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===== DESARROLLO =====
+.turbo/
+.vercel/
+.netlify/
+
+# ===== TYPESCRIPT =====
+*.tsbuildinfo
+
+# ===== NEXT.JS =====
+.next/
+out/
+next-env.d.ts
+
+# ===== NESTJS =====
+dist/
+
+# ===== DOCKER =====
+.dockerignore
+
+# ===== STREAMING ESPECÍFICO =====
+# Archivos temporales de streaming
+*.flv
+*.mp4
+*.avi
+*.mkv
+*.ts
+*.m3u8
+*.m4s
+
+# Configuraciones locales de MediaMTX
+mediamtx.yml
+mediamtx.local.yml
+
+# Logs de streaming
+streaming-logs/
+rtmp-logs/
+srt-logs/
+
+# ===== SCRIPTS DE PRUEBA TEMPORALES =====
+test-*.sh
+prueba-*.js
+demo-*.ts
+
+# ===== BACKUP Y TEMPORALES =====
+*.bak
+*.backup
+*.orig
+*.rej
+.tmp/
+temp/
+
+# ===== CERTIFICADOS Y CLAVES =====
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# ===== MONOREPO ESPECÍFICO =====
+# Lockfiles específicos (mantenemos solo pnpm-lock.yaml)
+package-lock.json
+yarn.lock
+
+# ===== HERRAMIENTAS DE DESARROLLO =====
+.history/
+.vscode-test/
+.eslintcache
+
+# ===== CURSOR AI =====
+.cursor/
+
+# ===== ARCHIVOS ESPECÍFICOS DEL PROYECTO =====
+# Script de prueba temporal
+apps/backend/test-srt-api.sh
