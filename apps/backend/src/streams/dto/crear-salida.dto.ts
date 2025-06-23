@@ -60,6 +60,11 @@ export class CrearSalidaDto {
   @IsOptional()
   latenciaSRT?: number;
 
+  @ValidateIf((o) => o.protocolo === ProtocoloSalida.SRT)
+  @IsString()
+  @IsOptional()
+  streamIdSRT?: string;
+
   // Campos específicos de HLS
   @ValidateIf((o) => o.protocolo === ProtocoloSalida.HLS)
   @IsInt()

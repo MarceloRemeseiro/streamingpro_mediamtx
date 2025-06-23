@@ -13,24 +13,36 @@ export class StreamsService {
 
   // ===== MÉTODOS PARA ENTRADAS =====
   async crearEntrada(crearEntradaDto: CrearEntradaDto) {
-    let claveStream: string | undefined;
+    let datosEntrada: any = {
+      nombre: crearEntradaDto.nombre,
+      protocolo: crearEntradaDto.protocolo,
+    };
+
     if (crearEntradaDto.protocolo === ProtocoloStream.RTMP) {
-      claveStream = this.generarClaveUnica();
+      // RTMP: Puerto fijo 1935, generar streamKey y URL
+      const streamKey = this.generarClaveUnica();
+      datosEntrada = {
+        ...datosEntrada,
+        streamKey,
+        url: `rtmp://localhost:1935/live/${streamKey}`,
+      };
+    } else if (crearEntradaDto.protocolo === ProtocoloStream.SRT) {
+      // SRT: Puerto fijo 6000, generar streamId siempre, passphrase opcional
+      const streamId = this.generarClaveUnica();
+      const passphraseSRT = crearEntradaDto.incluirPassphrase ? this.generarClaveUnica() : undefined;
+      
+      datosEntrada = {
+        ...datosEntrada,
+        puertoSRT: 6000,
+        latenciaSRT: crearEntradaDto.latenciaSRT || 200,
+        streamId,
+        passphraseSRT,
+        url: `srt://localhost:6000?streamid=${streamId}${passphraseSRT ? `&passphrase=${passphraseSRT}` : ''}`,
+      };
     }
-
-    // Validar que el puerto SRT sea requerido para protocolo SRT
-    if (crearEntradaDto.protocolo === ProtocoloStream.SRT && !crearEntradaDto.puertoSRT) {
-      throw new BadRequestException('El puerto SRT es requerido para entradas SRT');
-    }
-
-    // Aquí iría la lógica para verificar que el puerto SRT no esté en uso
-    // Por ahora, lo dejamos pendiente.
 
     return this.prisma.entradaStream.create({
-      data: {
-        ...crearEntradaDto,
-        claveStream,
-      },
+      data: datosEntrada,
     });
   }
 
@@ -62,20 +74,21 @@ export class StreamsService {
 
   async actualizarEntrada(id: string, actualizarEntradaDto: ActualizarEntradaDto) {
     // Verificar que la entrada existe
-    await this.obtenerEntradaPorId(id);
+    const entradaExistente = await this.obtenerEntradaPorId(id);
 
-    // Si se cambia el protocolo a RTMP y no tiene clave, generar una nueva
-    let claveStream = actualizarEntradaDto.claveStream;
-    if (actualizarEntradaDto.protocolo === ProtocoloStream.RTMP && !claveStream) {
-      claveStream = this.generarClaveUnica();
+    // Solo permitir actualizar nombre y latencia para SRT
+    let datosActualizacion: any = {
+      nombre: actualizarEntradaDto.nombre,
+    };
+
+    // Si es SRT y se actualiza la latencia
+    if (entradaExistente.protocolo === ProtocoloStream.SRT && actualizarEntradaDto.latenciaSRT) {
+      datosActualizacion.latenciaSRT = actualizarEntradaDto.latenciaSRT;
     }
 
     return this.prisma.entradaStream.update({
       where: { id },
-      data: {
-        ...actualizarEntradaDto,
-        claveStream,
-      },
+      data: datosActualizacion,
       include: {
         salidas: true,
       },

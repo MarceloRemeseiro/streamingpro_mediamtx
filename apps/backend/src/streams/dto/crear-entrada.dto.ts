@@ -5,9 +5,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsBoolean,
   Min,
   Max,
-  ValidateIf,
 } from 'class-validator';
 
 export class CrearEntradaDto {
@@ -18,23 +18,13 @@ export class CrearEntradaDto {
   @IsEnum(ProtocoloStream)
   protocolo: ProtocoloStream;
 
-  @ValidateIf((o) => o.protocolo === ProtocoloStream.SRT)
-  @IsInt()
-  @Min(1024)
-  @Max(65535)
-  puertoSRT?: number;
-
   @IsInt()
   @Min(80)
   @Max(2000)
   @IsOptional()
   latenciaSRT?: number;
 
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  passphraseSRT?: string;
-
-  @IsString()
-  @IsOptional()
-  streamId?: string;
+  incluirPassphrase?: boolean; // Solo para SRT
 } 
