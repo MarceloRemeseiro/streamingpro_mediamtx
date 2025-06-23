@@ -31,6 +31,7 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog';
 import { CreateSalidaModal } from './create-salida-modal';
 import { EditSalidaModal } from './edit-salida-modal';
 import { DeleteSalidaConfirm } from './delete-salida-confirm';
+import { HLSPlayer } from './hls-player';
 
 interface StreamInputCardProps {
   entrada: EntradaStream;
@@ -62,16 +63,38 @@ export function StreamInputCard({
     navigator.clipboard.writeText(texto);
   };
 
+  // Función de debug temporal
+  const mostrarDebugInfo = () => {
+    console.log('=== DEBUG INFO ===');
+    console.log('Entrada completa:', entrada);
+    console.log('URL de conexión:', obtenerUrlConexion());
+    console.log('URL de video:', obtenerUrlHLS());
+    console.log('Estado activo:', entrada.activo);
+    console.log('URL del backend:', entrada.hlsUrl);
+    console.log('==================');
+  };
+
   const obtenerUrlConexion = () => {
     // La URL se genera automáticamente en el backend
     return entrada.url;
   };
 
   const obtenerUrlHLS = () => {
-    const salidaHLS = salidasPorDefecto.find(s => s.protocolo === ProtocoloSalida.HLS);
-    if (salidaHLS) {
-      return `http://localhost:8080/hls/${entrada.id}/index.m3u8`;
+    // Usar hlsUrl del backend si está disponible (ya incluye la configuración correcta)
+    if (entrada.hlsUrl) {
+      return entrada.hlsUrl;
     }
+    
+    // Fallback: generar URL HLS según el protocolo de entrada
+    if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
+      const fallbackUrl = `live/${entrada.streamKey}`;
+      return fallbackUrl;
+    } else if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
+      // Extraer el path del streamId (formato: publish:path)
+      const streamPath = entrada.streamId.replace('publish:', '');
+      return streamPath;
+    }
+    
     return null;
   };
 
@@ -85,6 +108,15 @@ export function StreamInputCard({
             <Badge variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}>
               {entrada.protocolo}
             </Badge>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-blue-500"
+              onClick={mostrarDebugInfo}
+              title="Debug Info"
+            >
+              🐛
+            </Button>
             <EditEntradaModal 
               entrada={entrada} 
               onEntradaActualizada={onEntradaActualizada}
@@ -121,20 +153,29 @@ export function StreamInputCard({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2">
-            <div className="bg-black rounded-md aspect-video flex items-center justify-center">
-              {obtenerUrlHLS() ? (
-                <div className="text-white text-sm text-center">
-                  <p>Reproductor HLS</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {obtenerUrlHLS()}
-                  </p>
+            {obtenerUrlHLS() && entrada.activo ? (
+              <HLSPlayer 
+                src={obtenerUrlHLS()!}
+                autoPlay={false}
+                muted={true}
+              />
+            ) : (
+              <div className="bg-black rounded-md aspect-video flex items-center justify-center">
+                <div className="text-gray-400 text-sm text-center">
+                  {entrada.activo ? (
+                    <div>
+                      <p>⏳ Procesando video...</p>
+                      <p className="text-xs mt-1">El stream está activo, el video aparecerá automáticamente</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p>📡 Sin señal</p>
+                      <p className="text-xs mt-1">Inicia tu stream para ver el video aquí</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-gray-400 text-sm">
-                  Sin señal
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </CollapsibleContent>
         </Collapsible>
 

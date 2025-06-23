@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { StreamsController } from './streams.controller';
 import { StreamsService } from './streams.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { MediaMTXModule } from '../mediamtx/mediamtx.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MediaMTXModule],
   controllers: [StreamsController],
   providers: [StreamsService]
 })

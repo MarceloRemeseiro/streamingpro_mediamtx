@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { StreamInputCard } from '@/components/stream-input-card';
 import { CreateEntradaModal } from '@/components/create-entrada-modal';
+import { MediaMTXStatus } from '@/components/mediamtx-status';
 import { EntradaStream } from '@/types/streaming';
 import { entradasApi, salidasApi } from '@/lib/api';
 
@@ -124,6 +125,11 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Componente de diagnóstico MediaMTX */}
+        {/* <div className="mb-8">
+          <MediaMTXStatus />
+        </div> */}
+
         {entradas.length === 0 ? (
           <div className="text-center py-12">
             <div className="max-w-md mx-auto">

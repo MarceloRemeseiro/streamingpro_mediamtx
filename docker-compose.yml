@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
@@ -37,8 +35,55 @@ services:
       timeout: 5s
       retries: 5
 
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: streamingpro_mediamtx
+    restart: always
+    ports:
+      # RTSP
+      - '8554:8554'
+      # RTMP
+      - '1935:1935'
+      # WebRTC
+      - '8888:8888'
+      - '8889:8889'
+      # SRT
+      - '8890:8890/udp'
+      # API MediaMTX
+      - '9997:9997'
+      # HLS
+      - '8080:8080'
+    environment:
+      # Configuración básica MediaMTX
+      - MTX_PROTOCOLS=tcp
+      - MTX_WEBRTCADDITIONALHOSTS=localhost
+      # Habilitar HLS
+      - MTX_HLS=yes
+      - MTX_HLSADDRESS=:8080
+      # Habilitar API Control
+      - MTX_API=yes
+      - MTX_APIADDRESS=:9997
+      # Configurar usuario para API (formato: usuario:contraseña)
+      - MTX_AUTHINTERNALUSERS_0_USER=admin
+      - MTX_AUTHINTERNALUSERS_0_PASS=admin123
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION=api
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_1_ACTION=read
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_2_ACTION=publish
+      # Logs
+      - MTX_LOGLEVEL=info
+    volumes:
+      # Directorio para archivos HLS
+      - mediamtx_hls:/tmp/hls
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9997/v3/config/global/get"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
     driver: local
   postgres_test_data:
+    driver: local
+  mediamtx_hls:
     driver: local 

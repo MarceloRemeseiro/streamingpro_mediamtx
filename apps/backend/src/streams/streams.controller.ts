@@ -69,4 +69,20 @@ export class StreamsController {
   eliminarSalida(@Param('id') id: string) {
     return this.streamsService.eliminarSalida(id);
   }
+
+  // ===== ENDPOINTS MEDIAMTX =====
+  @Get('mediamtx/health')
+  async mediaMTXHealth() {
+    return this.streamsService.verificarMediaMTX();
+  }
+
+  @Get('mediamtx/paths')
+  async mediaMTXPaths() {
+    return this.streamsService.obtenerPathsMediaMTX();
+  }
+
+  @Get('mediamtx/stats')
+  async mediaMTXStats() {
+    return this.streamsService.obtenerEstadisticasMediaMTX();
+  }
 }
