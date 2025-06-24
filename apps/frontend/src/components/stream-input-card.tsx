@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Card, 
   CardContent, 
@@ -9,30 +9,20 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  ChevronDown,
-  ChevronUp,
-  Play,
-  Copy,
+  Radio,
+  Settings2,
   Plus,
   Trash2,
-  Settings,
   Edit
 } from 'lucide-react';
-import { EntradaStream, ProtocoloStream, ProtocoloSalida } from '@/types/streaming';
+import { EntradaStream, ProtocoloStream } from '@/types/streaming';
 import { EditEntradaModal } from './edit-entrada-modal';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
-import { CreateSalidaModal } from './create-salida-modal';
-import { EditSalidaModal } from './edit-salida-modal';
-import { DeleteSalidaConfirm } from './delete-salida-confirm';
-import { OutputSwitchConfirm } from './output-switch-confirm';
-import { HLSPlayer } from './hls-player';
+import { useCollapseState } from '@/lib/hooks';
+import { StreamVideoSection } from './stream-video-section';
+import { StreamConnectionData } from './stream-connection-data';
+import { StreamOutputsSection } from './stream-outputs-section';
 
 interface StreamInputCardProps {
   entrada: EntradaStream;
@@ -47,10 +37,17 @@ export function StreamInputCard({
   onActualizarSalida, 
   onEntradaActualizada
 }: StreamInputCardProps) {
-  const [videoExpanded, setVideoExpanded] = useState(false);
-  const [datosExpanded, setDatosExpanded] = useState(false);
-  const [outputsExpanded, setOutputsExpanded] = useState(false);
-  const [customOutputsExpanded, setCustomOutputsExpanded] = useState(false);
+  // Estado de collapses persistente en localStorage
+  const {
+    videoExpanded,
+    setVideoExpanded,
+    datosExpanded,
+    setDatosExpanded,
+    outputsExpanded,
+    setOutputsExpanded,
+    customOutputsExpanded,
+    setCustomOutputsExpanded,
+  } = useCollapseState(entrada.id);
 
   // Separar salidas por defecto y personalizadas
   const salidasPorDefecto = entrada.salidas.filter(salida => 
@@ -81,11 +78,32 @@ export function StreamInputCard({
   };
 
   const obtenerUrlConexion = () => {
-    // Para SRT, mostrar solo la URL base sin streamid
+    // Para SRT, construir la URL completa con todos los parámetros
     if (entrada.protocolo === ProtocoloStream.SRT) {
-      return `srt://localhost:${entrada.puertoSRT}`;
+      const baseUrl = `srt://localhost:${entrada.puertoSRT}`;
+      const params = new URLSearchParams();
+      
+      // Agregar streamid si existe
+      if (entrada.streamId) {
+        params.append('streamid', `publish:${obtenerStreamIdLimpio(entrada.streamId)}`);
+      }
+      
+      // Agregar passphrase si existe
+      if (entrada.passphraseSRT) {
+        params.append('passphrase', entrada.passphraseSRT);
+      }
+      
+      // Agregar latencia si existe
+      if (entrada.latenciaSRT) {
+        params.append('latency', entrada.latenciaSRT.toString());
+      }
+      
+      // Construir URL final
+      const finalUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+      return finalUrl;
     }
-    // La URL se genera automáticamente en el backend
+    
+    // La URL se genera automáticamente en el backend para RTMP
     return entrada.url;
   };
 
@@ -112,21 +130,17 @@ export function StreamInputCard({
     <Card className="w-full max-w-md">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${entrada.activo ? 'bg-green-500' : 'bg-gray-400'}`} />
-            <Badge variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}>
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full border-2 ${entrada.activo ?? false ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
+                          <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
+                          <Badge 
+                variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}
+                className="text-xs px-2 py-1"
+              >
               {entrada.protocolo}
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-blue-500"
-              onClick={mostrarDebugInfo}
-              title="Debug Info"
-            >
-              🐛
-            </Button>
+          </div>
+          <div className="flex items-center gap-2">
             <EditEntradaModal 
               entrada={entrada} 
               onEntradaActualizada={onEntradaActualizada}
@@ -151,208 +165,49 @@ export function StreamInputCard({
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {/* Componente Video */}
-        <Collapsible open={videoExpanded} onOpenChange={setVideoExpanded}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto">
-              <div className="flex items-center gap-2">
-                <Play className="h-4 w-4" />
-                <span className="font-medium">Video</span>
-              </div>
-              {videoExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2">
-            {obtenerUrlHLS() && entrada.activo ? (
-              <HLSPlayer 
-                src={obtenerUrlHLS()!}
-                autoPlay={false}
-                muted={true}
-              />
-            ) : (
-              <div className="bg-black rounded-md aspect-video flex items-center justify-center">
-                <div className="text-gray-400 text-sm text-center">
-                  {entrada.activo ? (
-                    <div>
-                      <p>⏳ Procesando video...</p>
-                      <p className="text-xs mt-1">El stream está activo, el video aparecerá automáticamente</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p>📡 Sin señal</p>
-                      <p className="text-xs mt-1">Inicia tu stream para ver el video aquí</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+        {/* Sección de Video */}
+        <StreamVideoSection
+          isExpanded={videoExpanded}
+          onToggle={setVideoExpanded}
+          hlsUrl={obtenerUrlHLS()}
+          isActive={entrada.activo ?? false}
+        />
 
-        {/* Componente Datos */}
-        <Collapsible open={datosExpanded} onOpenChange={setDatosExpanded}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span className="font-medium">Datos de Conexión</span>
-              </div>
-              {datosExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">URL:</span>
-                <div className="flex items-center gap-1">
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                    {obtenerUrlConexion()}
-                  </code>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6"
-                    onClick={() => copiarAlPortapapeles(obtenerUrlConexion())}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              
-              {entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Stream Key:</span>
-                  <div className="flex items-center gap-1">
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {entrada.streamKey}
-                    </code>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6"
-                      onClick={() => copiarAlPortapapeles(entrada.streamKey!)}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {entrada.protocolo === ProtocoloStream.SRT && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Puerto:</span>
-                    <span className="text-sm">{entrada.puertoSRT}</span>
-                  </div>
-                  {entrada.streamId && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Stream ID:</span>
-                      <div className="flex items-center gap-1">
-                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                          publish:{obtenerStreamIdLimpio(entrada.streamId)}
-                        </code>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6"
-                          onClick={() => copiarAlPortapapeles(`publish:${obtenerStreamIdLimpio(entrada.streamId!)}`)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  {entrada.passphraseSRT && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Passphrase:</span>
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                        {entrada.passphraseSRT}
-                      </code>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Latencia:</span>
-                    <span className="text-sm">{entrada.latenciaSRT || 200}ms</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        {/* Sección de Datos de Conexión */}
+        <StreamConnectionData
+          isExpanded={datosExpanded}
+          onToggle={setDatosExpanded}
+          entrada={entrada}
+          connectionUrl={obtenerUrlConexion()}
+          onCopyToClipboard={copiarAlPortapapeles}
+          getCleanStreamId={obtenerStreamIdLimpio}
+        />
 
         {/* Outputs por Defecto */}
-        <Collapsible open={outputsExpanded} onOpenChange={setOutputsExpanded}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Outputs por Defecto</span>
-                <Badge variant="outline">{salidasPorDefecto.length}</Badge>
-              </div>
-              {outputsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2">
-            {salidasPorDefecto.map((salida) => (
-              <div key={salida.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {salida.protocolo}
-                  </Badge>
-                  <span className="text-sm">{salida.nombre}</span>
-                </div>
-                <OutputSwitchConfirm
-                  isEnabled={salida.habilitada}
-                  outputName={salida.nombre}
-                  onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
-                />
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
+        <StreamOutputsSection
+          isExpanded={outputsExpanded}
+          onToggle={setOutputsExpanded}
+          outputs={salidasPorDefecto}
+          title="Outputs por Defecto"
+          icon={<Radio className="h-4 w-4" />}
+          entradaId={entrada.id}
+          onActualizarSalida={onActualizarSalida}
+          onEntradaActualizada={onEntradaActualizada}
+          showCreateButton={false}
+        />
 
-        {/* Custom Outputs */}
-        <Collapsible open={customOutputsExpanded} onOpenChange={setCustomOutputsExpanded}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Outputs Personalizados</span>
-                <Badge variant="outline">{salidasPersonalizadas.length}</Badge>
-              </div>
-              {customOutputsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2">
-            {salidasPersonalizadas.map((salida) => (
-              <div key={salida.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {salida.protocolo}
-                  </Badge>
-                  <span className="text-sm">{salida.nombre}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <OutputSwitchConfirm
-                    isEnabled={salida.habilitada}
-                    outputName={salida.nombre}
-                    onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
-                  />
-                  <EditSalidaModal
-                    salida={salida}
-                    onSalidaActualizada={onEntradaActualizada}
-                  />
-                  <DeleteSalidaConfirm
-                    salida={salida}
-                    onSalidaEliminada={onEntradaActualizada}
-                  />
-                </div>
-              </div>
-            ))}
-            <CreateSalidaModal 
-              entradaId={entrada.id}
-              onSalidaCreada={onEntradaActualizada}
-            />
-          </CollapsibleContent>
-        </Collapsible>
+        {/* Outputs Personalizados */}
+        <StreamOutputsSection
+          isExpanded={customOutputsExpanded}
+          onToggle={setCustomOutputsExpanded}
+          outputs={salidasPersonalizadas}
+          title="Outputs Personalizados"
+          icon={<Settings2 className="h-4 w-4" />}
+          entradaId={entrada.id}
+          onActualizarSalida={onActualizarSalida}
+          onEntradaActualizada={onEntradaActualizada}
+          showCreateButton={true}
+        />
       </CardContent>
     </Card>
   );
