@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Put, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Put, Delete, Patch } from '@nestjs/common';
 import { StreamsService } from './streams.service';
 import { CrearEntradaDto } from './dto/crear-entrada.dto';
 import { ActualizarEntradaDto } from './dto/actualizar-entrada.dto';
@@ -39,12 +39,17 @@ export class StreamsController {
 
   @Post('salidas')
   crearSalida(@Body() crearSalidaDto: CrearSalidaDto) {
-    return this.streamsService.crearSalida(crearSalidaDto);
+    return this.streamsService.crearSalida(crearSalidaDto.entradaId, crearSalidaDto);
   }
 
   @Get('salidas')
   obtenerSalidas() {
     return this.streamsService.obtenerSalidas();
+  }
+
+  @Get('outputs/by-stream-key/:streamKey')
+  async obtenerOutputsPorStreamKey(@Param('streamKey') streamKey: string) {
+    return this.streamsService.obtenerOutputsPorStreamKey(streamKey);
   }
 
   @Get('entradas/:entradaId/salidas')
@@ -70,19 +75,46 @@ export class StreamsController {
     return this.streamsService.eliminarSalida(id);
   }
 
-  // ===== ENDPOINTS MEDIAMTX =====
-  @Get('mediamtx/health')
-  async mediaMTXHealth() {
-    return this.streamsService.verificarMediaMTX();
+  @Get('entradas/:id/outputs/estado')
+  async obtenerEstadoOutputsEntrada(@Param('id') id: string) {
+    return this.streamsService.obtenerEstadoOutputsEntrada(id);
   }
 
-  @Get('mediamtx/paths')
-  async mediaMTXPaths() {
-    return this.streamsService.obtenerPathsMediaMTX();
+  @Patch('entradas/:id/outputs/hot-reload')
+  async hotReloadOutputsEntrada(@Param('id') id: string) {
+    return this.streamsService.forzarSincronizacionEntrada(id);
   }
 
-  @Get('mediamtx/stats')
-  async mediaMTXStats() {
-    return this.streamsService.obtenerEstadisticasMediaMTX();
+  @Get('sistema/estadisticas')
+  async obtenerEstadisticasCompletas() {
+    const entradas = await this.streamsService.obtenerEntradas();
+      
+    const totalOutputs = entradas.reduce((sum, entrada) => sum + (entrada.salidas?.length || 0), 0);
+    
+    const outputsHabilitados = entradas.reduce((sum, entrada) => 
+      sum + (entrada.salidas?.filter(s => s.habilitada).length || 0), 0);
+
+    const outputsPorProtocolo = entradas.reduce((acc, entrada) => {
+      entrada.salidas?.forEach(salida => {
+        acc[salida.protocolo] = (acc[salida.protocolo] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      outputs: {
+        total: totalOutputs,
+        habilitados: outputsHabilitados,
+        deshabilitados: totalOutputs - outputsHabilitados,
+        porProtocolo: outputsPorProtocolo,
+      },
+      entradas: {
+        total: entradas.length,
+        conOutputs: entradas.filter(e => e.salidas?.length > 0).length,
+        sinOutputs: entradas.filter(e => e.salidas?.length === 0).length,
+        activas: entradas.filter(e => e.activo).length,
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 }

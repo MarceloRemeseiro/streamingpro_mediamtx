@@ -36,7 +36,9 @@ services:
       retries: 5
 
   mediamtx:
-    image: bluenviron/mediamtx:latest
+    build:
+      context: .
+      dockerfile: docker/mediamtx/Dockerfile
     container_name: streamingpro_mediamtx
     restart: always
     ports:

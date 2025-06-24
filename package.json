@@ -19,7 +19,12 @@
     "build:backend": "cd apps/backend && npm run build",
     "build:frontend": "cd apps/frontend && npm run build",
     "build": "npm run build:backend && npm run build:frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:stability": "./scripts/test-stability.sh",
+    "test:network": "./scripts/test-network-distributed.sh",
+    "test:analyze": "python3 scripts/analyze-performance.py",
+    "test:all": "TEST_DURATION=300 ./scripts/test-stability.sh all",
+    "test:setup": "docker-compose -f docker-compose.testing.yml up -d"
   },
   "keywords": [],
   "author": "",

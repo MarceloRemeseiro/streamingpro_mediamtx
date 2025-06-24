@@ -237,7 +237,7 @@ export function EditSalidaModal({ salida, onSalidaActualizada, trigger }: EditSa
                         />
                       </FormControl>
                       <FormDescription>
-                        Puerto UDP del servidor SRT de destino (1024-65535).
+                        Puerto UDP del servidor SRT de destino (1-65535).
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

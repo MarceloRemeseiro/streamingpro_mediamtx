@@ -28,6 +28,7 @@ enum ProtocoloStream {
 
 enum ProtocoloSalida {
   RTMP
+  RTMPS
   SRT
   HLS
 }
@@ -72,7 +73,7 @@ model EntradaStream {
 model SalidaStream {
   id              String   @id @default(cuid())
   nombre          String
-  habilitada      Boolean  @default(true)
+  habilitada      Boolean  @default(false)
   protocolo       ProtocoloSalida
   
   // Foreign Key

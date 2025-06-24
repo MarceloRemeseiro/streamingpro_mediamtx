@@ -31,6 +31,7 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog';
 import { CreateSalidaModal } from './create-salida-modal';
 import { EditSalidaModal } from './edit-salida-modal';
 import { DeleteSalidaConfirm } from './delete-salida-confirm';
+import { OutputSwitchConfirm } from './output-switch-confirm';
 import { HLSPlayer } from './hls-player';
 
 interface StreamInputCardProps {
@@ -63,6 +64,11 @@ export function StreamInputCard({
     navigator.clipboard.writeText(texto);
   };
 
+  const obtenerStreamIdLimpio = (streamId: string) => {
+    // Extraer solo el hash del streamId de MediaMTX (#!::r=HASH,m=publish)
+    return streamId.replace('#!::r=', '').replace(',m=publish', '');
+  };
+
   // Función de debug temporal
   const mostrarDebugInfo = () => {
     console.log('=== DEBUG INFO ===');
@@ -75,6 +81,10 @@ export function StreamInputCard({
   };
 
   const obtenerUrlConexion = () => {
+    // Para SRT, mostrar solo la URL base sin streamid
+    if (entrada.protocolo === ProtocoloStream.SRT) {
+      return `srt://localhost:${entrada.puertoSRT}`;
+    }
     // La URL se genera automáticamente en el backend
     return entrada.url;
   };
@@ -237,9 +247,19 @@ export function StreamInputCard({
                   {entrada.streamId && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Stream ID:</span>
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                        {entrada.streamId}
-                      </code>
+                      <div className="flex items-center gap-1">
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          publish:{obtenerStreamIdLimpio(entrada.streamId)}
+                        </code>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={() => copiarAlPortapapeles(`publish:${obtenerStreamIdLimpio(entrada.streamId!)}`)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                   {entrada.passphraseSRT && (
@@ -280,9 +300,10 @@ export function StreamInputCard({
                   </Badge>
                   <span className="text-sm">{salida.nombre}</span>
                 </div>
-                <Switch 
-                  checked={salida.habilitada}
-                  onCheckedChange={(checked) => onActualizarSalida(salida.id, checked)}
+                <OutputSwitchConfirm
+                  isEnabled={salida.habilitada}
+                  outputName={salida.nombre}
+                  onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
                 />
               </div>
             ))}
@@ -310,9 +331,10 @@ export function StreamInputCard({
                   <span className="text-sm">{salida.nombre}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Switch 
-                    checked={salida.habilitada}
-                    onCheckedChange={(checked) => onActualizarSalida(salida.id, checked)}
+                  <OutputSwitchConfirm
+                    isEnabled={salida.habilitada}
+                    outputName={salida.nombre}
+                    onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
                   />
                   <EditSalidaModal
                     salida={salida}

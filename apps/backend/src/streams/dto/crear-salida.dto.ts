@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsBoolean,
   Min,
   Max,
   ValidateIf,
@@ -24,9 +25,13 @@ export class CrearSalidaDto {
   @IsNotEmpty()
   entradaId: string;
 
+  @IsBoolean()
+  @IsOptional()
+  habilitada?: boolean;
+
   // URL destino (requerida para RTMP y SRT, opcional para HLS)
   // Acepta URLs de streaming: rtmp://, rtmps://, srt://
-  @ValidateIf((o) => o.protocolo === ProtocoloSalida.RTMP || o.protocolo === ProtocoloSalida.SRT)
+  @ValidateIf((o) => o.protocolo === ProtocoloSalida.RTMP || o.protocolo === ProtocoloSalida.RTMPS || o.protocolo === ProtocoloSalida.SRT)
   @IsString()
   @IsNotEmpty()
   @Matches(/^(rtmps?|srt):\/\/[^\s/$.?#].[^\s]*$/i, {
@@ -34,8 +39,8 @@ export class CrearSalidaDto {
   })
   urlDestino?: string;
 
-  // Campos específicos de RTMP
-  @ValidateIf((o) => o.protocolo === ProtocoloSalida.RTMP)
+  // Campos específicos de RTMP/RTMPS
+  @ValidateIf((o) => o.protocolo === ProtocoloSalida.RTMP || o.protocolo === ProtocoloSalida.RTMPS)
   @IsString()
   @IsOptional()
   claveStreamRTMP?: string;
@@ -43,7 +48,7 @@ export class CrearSalidaDto {
   // Campos específicos de SRT
   @ValidateIf((o) => o.protocolo === ProtocoloSalida.SRT)
   @IsInt()
-  @Min(1024)
+  @Min(1)
   @Max(65535)
   @IsOptional()
   puertoSRT?: number;

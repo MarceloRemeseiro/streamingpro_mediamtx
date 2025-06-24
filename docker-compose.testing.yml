@@ -1,0 +1,128 @@
+services:
+  # Base de datos (misma configuración)
+  postgres:
+    image: postgres:15
+    container_name: streamingpro_postgres_test
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: user_streaming
+      POSTGRES_PASSWORD: password_streaming
+      POSTGRES_DB: streamingpro_test_db
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user_streaming -d streamingpro_test_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MediaMTX optimizado para pruebas de estabilidad
+  mediamtx:
+    build:
+      context: .
+      dockerfile: docker/mediamtx/Dockerfile
+    container_name: streamingpro_mediamtx_test
+    restart: always
+    ports:
+      # RTSP
+      - '8554:8554'
+      # RTMP
+      - '1935:1935'
+      # WebRTC
+      - '8888:8888'
+      - '8889:8889'
+      # SRT
+      - '8890:8890/udp'
+      # API MediaMTX
+      - '9997:9997'
+      # HLS
+      - '8080:8080'
+    environment:
+      # Configuración básica MediaMTX
+      - MTX_PROTOCOLS=tcp
+      - MTX_WEBRTCADDITIONALHOSTS=0.0.0.0
+      # Habilitar HLS con configuración optimizada
+      - MTX_HLS=yes
+      - MTX_HLSADDRESS=:8080
+      - MTX_HLSSEGMENTCOUNT=6
+      - MTX_HLSSEGMENTDURATION=2s
+      - MTX_HLSPARTDURATION=200ms
+      # Habilitar API Control
+      - MTX_API=yes
+      - MTX_APIADDRESS=:9997
+      # Configurar usuario para API
+      - MTX_AUTHINTERNALUSERS_0_USER=admin
+      - MTX_AUTHINTERNALUSERS_0_PASS=admin123
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION=api
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_1_ACTION=read
+      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_2_ACTION=publish
+      # Logs más detallados para debugging
+      - MTX_LOGLEVEL=debug
+      # Configuraciones de performance
+      - MTX_READTIMEOUT=10s
+      - MTX_WRITETIMEOUT=10s
+      - MTX_READBUFFERCOUNT=2048
+    volumes:
+      - mediamtx_hls_test:/tmp/hls
+      - ./logs/mediamtx:/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9997/v3/config/global/get"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Generador de streams de prueba
+  stream-generator:
+    image: jrottenberg/ffmpeg:4.4-alpine
+    container_name: streamingpro_stream_generator
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    entrypoint: []
+    command: >
+      sh -c "
+      echo 'Esperando a que MediaMTX esté listo...';
+      sleep 15;
+      echo 'Generando stream de prueba estable...';
+      ffmpeg -re -f lavfi -i testsrc2=size=1920x1080:rate=30 
+             -f lavfi -i sine=frequency=1000:sample_rate=48000 
+             -c:v libx264 -preset ultrafast -tune zerolatency 
+             -b:v 2000k -maxrate 2000k -bufsize 4000k 
+             -g 60 -keyint_min 60 -sc_threshold 0
+             -c:a aac -b:a 128k -ar 48000 -ac 2
+             -f flv rtmp://mediamtx:1935/live/test-stable
+      "
+    volumes:
+      - ./logs/generator:/logs
+
+  # Monitor de estabilidad
+  stability-monitor:
+    image: alpine:3.19
+    container_name: streamingpro_stability_monitor
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    command: >
+      sh -c "
+      apk add --no-cache curl jq bash;
+      echo 'Monitor de estabilidad iniciado...';
+      while true; do
+        echo '=== Monitor $(date) ===';
+        echo 'Verificando paths activos:';
+        curl -s http://mediamtx:9997/v3/paths/list | jq '.items[] | {name: .name, ready: .ready, bytesReceived: .bytesReceived}' || echo 'Error API';
+        echo 'Verificando HLS:';
+        curl -s -I http://mediamtx:8080/test-stable/index.m3u8 | head -1 || echo 'HLS no disponible';
+        echo '---';
+        sleep 5;
+      done
+      "
+    volumes:
+      - ./logs/monitor:/logs
+
+volumes:
+  postgres_test_data:
+    driver: local
+  mediamtx_hls_test:
+    driver: local 

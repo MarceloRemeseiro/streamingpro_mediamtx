@@ -1,32 +1,104 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MediaMTXService } from '../mediamtx/mediamtx.service';
+import { MediaMTXService, OutputPersonalizado, OutputRTMP, OutputSRT, OutputHLS } from '../mediamtx/mediamtx.service';
 import { CrearEntradaDto } from './dto/crear-entrada.dto';
 import { ActualizarEntradaDto } from './dto/actualizar-entrada.dto';
 import { CrearSalidaDto } from './dto/crear-salida.dto';
 import { ActualizarSalidaDto } from './dto/actualizar-salida.dto';
-import { ProtocoloStream, ProtocoloSalida } from '../prisma/generated/client';
+import { ProtocoloStream, ProtocoloSalida, EntradaStream, SalidaStream } from '../prisma/generated/client';
 import { randomBytes } from 'crypto';
 import { getStreamingUrlGenerator } from '../config/streaming.config';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class StreamsService {
   private urlGenerator = getStreamingUrlGenerator();
+  private readonly logger = new Logger(StreamsService.name);
 
   constructor(
     private prisma: PrismaService,
     private mediaMTXService: MediaMTXService,
   ) {}
 
+  // ===== MÉTODOS HELPER =====
+  
+  private convertirSalidasAOutputs(salidas: SalidaStream[]): OutputPersonalizado[] {
+    return salidas.map(salida => {
+      const outputBase = {
+        id: salida.id,
+        nombre: salida.nombre,
+        habilitada: salida.habilitada,
+        urlDestino: salida.urlDestino || '',
+      };
+
+      switch (salida.protocolo) {
+        case ProtocoloSalida.RTMP:
+          return { ...outputBase, claveStreamRTMP: salida.claveStreamRTMP } as OutputRTMP;
+        case ProtocoloSalida.SRT:
+          return { ...outputBase, passphraseSRT: salida.passphraseSRT, latenciaSRT: salida.latenciaSRT, streamIdSRT: salida.streamIdSRT } as OutputSRT;
+        case ProtocoloSalida.HLS:
+          // Nota: El output HLS vía FFmpeg es un caso de uso avanzado. Por ahora, se mantiene la estructura.
+          return { ...outputBase, segmentDuration: salida.segmentDuration } as OutputHLS;
+        default:
+          this.logger.warn(`Protocolo de salida no soportado durante la conversión: ${salida.protocolo}`);
+          return null;
+      }
+    }).filter(output => output !== null);
+  }
+
+  private async sincronizarEntradaCompleta(entradaId: string): Promise<void> {
+    try {
+      const entrada = await this.prisma.entradaStream.findUnique({
+        where: { id: entradaId },
+        include: { salidas: true },
+      });
+
+      if (!entrada) {
+        this.logger.error(`No se pudo sincronizar: Entrada con ID ${entradaId} no encontrada.`);
+        return;
+      }
+
+      const outputs = this.convertirSalidasAOutputs(entrada.salidas);
+      await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+
+    } catch (error) {
+      this.logger.error(`Error al sincronizar entrada completa ${entradaId}:`, error.message);
+    }
+  }
+
+  /**
+   * Sincroniza solo los outputs usando hot-reload (PATCH) para no interrumpir streams activos
+   */
+  private async sincronizarOutputsConHotReload(entradaId: string): Promise<void> {
+    try {
+      const entrada = await this.prisma.entradaStream.findUnique({
+        where: { id: entradaId },
+        include: { salidas: true },
+      });
+
+      if (!entrada) {
+        this.logger.error(`No se pudo sincronizar outputs: Entrada con ID ${entradaId} no encontrada.`);
+        return;
+      }
+
+      this.logger.log(`Hot-reload de outputs para entrada '${entrada.nombre}' (${entrada.salidas.length} outputs)`);
+      const outputs = this.convertirSalidasAOutputs(entrada.salidas);
+      await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+
+    } catch (error) {
+      this.logger.error(`Error al hacer hot-reload de outputs ${entradaId}:`, error.message);
+    }
+  }
+
   // ===== MÉTODOS PARA ENTRADAS =====
-  async crearEntrada(crearEntradaDto: CrearEntradaDto) {
+  
+  async crearEntrada(crearEntradaDto: CrearEntradaDto): Promise<EntradaStream> {
     let datosEntrada: any = {
       nombre: crearEntradaDto.nombre,
       protocolo: crearEntradaDto.protocolo,
     };
 
     if (crearEntradaDto.protocolo === ProtocoloStream.RTMP) {
-      // RTMP: Generar streamKey y URL usando configuración
       const streamKey = this.generarClaveUnica();
       datosEntrada = {
         ...datosEntrada,
@@ -34,9 +106,9 @@ export class StreamsService {
         url: this.urlGenerator.generateRtmpUrl(streamKey),
       };
     } else if (crearEntradaDto.protocolo === ProtocoloStream.SRT) {
-      // SRT: Generar path único, passphrase opcional usando configuración
       const streamPath = this.generarClaveUnica();
-      const streamId = `publish:${streamPath}`;
+      // El streamId para SRT debe ser compatible con la especificación de MediaMTX
+      const streamId = `#!::r=${streamPath},m=publish`;
       const passphraseSRT = crearEntradaDto.incluirPassphrase ? this.generarClaveUnica() : undefined;
       
       datosEntrada = {
@@ -49,70 +121,43 @@ export class StreamsService {
       };
     }
 
-    // Crear la entrada en la base de datos
-    const entrada = await this.prisma.entradaStream.create({
-      data: datosEntrada,
-    });
+    const entrada = await this.prisma.entradaStream.create({ data: datosEntrada });
 
-    // Sincronizar con MediaMTX
-    try {
-      await this.mediaMTXService.sincronizarEntrada(entrada);
-    } catch (error) {
-      // Log el error pero no fallar la creación
-      console.warn('Error al sincronizar entrada con MediaMTX:', error.message);
-    }
+    // Crea la configuración del path en MediaMTX de forma preventiva, sin outputs.
+    await this.sincronizarEntradaCompleta(entrada.id);
 
     return entrada;
   }
 
   async obtenerEntradas() {
     const entradas = await this.prisma.entradaStream.findMany({
-      include: {
-        salidas: true, // Incluimos las salidas relacionadas
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      include: { salidas: true },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // Enriquecer con información de MediaMTX
-    const entradasConEstado = await Promise.all(
+    return Promise.all(
       entradas.map(async (entrada) => {
-        let pathName = '';
-        let hlsUrl = '';
-        let activo = false;
-        let estadisticas = null;
-
         try {
-          if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
-            pathName = `live/${entrada.streamKey}`;
-            hlsUrl = this.urlGenerator.generateHlsUrl(pathName);
-            console.log(`Generated HLS URL for RTMP entrada ${entrada.id}:`, hlsUrl);
-            estadisticas = await this.mediaMTXService.obtenerEstadisticasStream(pathName);
-          } else if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
-            pathName = entrada.streamId.replace('publish:', '');
-            hlsUrl = this.urlGenerator.generateHlsUrl(pathName);
-            console.log(`Generated HLS URL for SRT entrada ${entrada.id}:`, hlsUrl);
-            estadisticas = await this.mediaMTXService.obtenerEstadisticasStream(pathName);
-          }
-
-          activo = estadisticas ? estadisticas.activo : false;
+          const pathName = this.mediaMTXService.calcularPathEntrada(entrada);
+          const estadoPath = await this.mediaMTXService.getEstadoPath(pathName);
+          const hlsUrl = this.urlGenerator.generateHlsUrl(pathName);
+          
+          return {
+            ...entrada,
+            activo: estadoPath?.ready || false,
+            hlsUrl,
+            pathName,
+            estadisticas: {
+              bytesRecibidos: estadoPath?.bytesReceived || 0,
+              bytesEnviados: estadoPath?.bytesSent || 0,
+            },
+          };
         } catch (error) {
-          // Si no se puede obtener información de MediaMTX, continuar sin estado
-          console.warn(`No se pudo obtener estado de MediaMTX para entrada ${entrada.id}:`, error.message);
+          this.logger.warn(`No se pudo obtener estado de MediaMTX para entrada ${entrada.id}: ${error.message}`);
+          return { ...entrada, activo: false, hlsUrl: '', pathName: '', estadisticas: null };
         }
-
-        return {
-          ...entrada,
-          activo,
-          hlsUrl,
-          pathName,
-          estadisticas,
-        };
       })
     );
-
-    return entradasConEstado;
   }
 
   async obtenerEntradaPorId(id: string) {
@@ -153,50 +198,33 @@ export class StreamsService {
     });
   }
 
-  async eliminarEntrada(id: string) {
-    // Verificar que la entrada existe
-    const entrada = await this.obtenerEntradaPorId(id);
-
-    // Eliminar de MediaMTX primero
-    try {
-      await this.mediaMTXService.eliminarEntrada(entrada);
-    } catch (error) {
-      console.warn('Error al eliminar entrada de MediaMTX:', error.message);
+  async eliminarEntrada(id: string): Promise<void> {
+    const entrada = await this.prisma.entradaStream.findUnique({ where: { id } });
+    if (!entrada) {
+      throw new NotFoundException(`Entrada con ID ${id} no encontrada para eliminar.`);
     }
 
-    return this.prisma.entradaStream.delete({
-      where: { id },
-    });
+    // Elimina la configuración del path y sus outputs de MediaMTX
+    await this.mediaMTXService.eliminarEntradaConOutputs(entrada);
+
+    // Luego elimina de la base de datos
+    await this.prisma.entradaStream.delete({ where: { id } });
   }
 
   // ===== MÉTODOS PARA SALIDAS =====
-  async crearSalida(crearSalidaDto: CrearSalidaDto) {
-    // Verificar que la entrada existe
-    await this.obtenerEntradaPorId(crearSalidaDto.entradaId);
 
-    // Validaciones específicas por protocolo
-    if (crearSalidaDto.protocolo === ProtocoloSalida.RTMP) {
-      if (!crearSalidaDto.urlDestino) {
-        throw new BadRequestException('URL destino es requerida para salidas RTMP');
-      }
-      if (!crearSalidaDto.claveStreamRTMP) {
-        // Generar clave automáticamente si no se proporciona
-        crearSalidaDto.claveStreamRTMP = this.generarClaveUnica();
-      }
-    }
-
-    if (crearSalidaDto.protocolo === ProtocoloSalida.SRT) {
-      if (!crearSalidaDto.urlDestino) {
-        throw new BadRequestException('URL destino es requerida para salidas SRT');
-      }
-    }
-
-    return this.prisma.salidaStream.create({
-      data: crearSalidaDto,
-      include: {
-        entrada: true,
+  async crearSalida(entradaId: string, crearSalidaDto: CrearSalidaDto): Promise<SalidaStream> {
+    const nuevaSalida = await this.prisma.salidaStream.create({
+      data: { 
+        ...crearSalidaDto, 
+        entradaId,
+        // Por defecto, los outputs se crean deshabilitados
+        habilitada: crearSalidaDto.habilitada ?? false
       },
     });
+    // Hot-reload: solo actualiza runOnReady sin interrumpir el stream
+    await this.sincronizarOutputsConHotReload(entradaId);
+    return nuevaSalida;
   }
 
   async obtenerSalidas() {
@@ -207,6 +235,55 @@ export class StreamsService {
       orderBy: {
         createdAt: 'desc',
       },
+    });
+  }
+
+  async obtenerOutputsPorStreamKey(streamKey: string) {
+    // Buscar la entrada por streamKey
+    const entrada = await this.prisma.entradaStream.findFirst({
+      where: { streamKey },
+      include: {
+        salidas: true,
+      },
+    });
+
+    if (!entrada) {
+      return [];
+    }
+
+    // Retornar solo las salidas en el formato que espera el script gestor
+    return entrada.salidas.map(salida => {
+      let urlDestino = salida.urlDestino;
+      
+      // Para outputs SRT, construir la URL completa con puerto, passphrase y streamid
+      if (salida.protocolo === ProtocoloSalida.SRT && salida.puertoSRT) {
+        const url = new URL(salida.urlDestino);
+        url.port = salida.puertoSRT.toString();
+        
+        const params = new URLSearchParams();
+        if (salida.passphraseSRT) {
+          params.append('passphrase', salida.passphraseSRT);
+        }
+        if (salida.streamIdSRT) {
+          params.append('streamid', salida.streamIdSRT);
+        }
+        if (salida.latenciaSRT) {
+          params.append('latency', salida.latenciaSRT.toString());
+        }
+        
+        url.search = params.toString();
+        urlDestino = url.toString();
+      }
+      
+      return {
+        id: salida.id,
+        nombre: salida.nombre,
+        habilitada: salida.habilitada,
+        protocolo: salida.protocolo,
+        urlDestino: urlDestino,
+        claveStreamRTMP: salida.claveStreamRTMP,
+        streamIdSRT: salida.streamIdSRT,
+      };
     });
   }
 
@@ -240,79 +317,104 @@ export class StreamsService {
     return salida;
   }
 
-  async actualizarSalida(id: string, actualizarSalidaDto: ActualizarSalidaDto) {
-    // Verificar que la salida existe
-    await this.obtenerSalidaPorId(id);
-
-    return this.prisma.salidaStream.update({
+  async actualizarSalida(id: string, actualizarSalidaDto: ActualizarSalidaDto): Promise<SalidaStream> {
+    const salidaExistente = await this.prisma.salidaStream.findUnique({ where: { id } });
+    if (!salidaExistente) {
+      throw new NotFoundException(`Salida con ID ${id} no encontrada.`);
+    }
+    const salidaActualizada = await this.prisma.salidaStream.update({
       where: { id },
       data: actualizarSalidaDto,
-      include: {
-        entrada: true,
-      },
     });
+    // Hot-reload: solo actualiza runOnReady sin interrumpir el stream
+    await this.sincronizarOutputsConHotReload(salidaActualizada.entradaId);
+    return salidaActualizada;
   }
 
-  async eliminarSalida(id: string) {
-    // Verificar que la salida existe
-    await this.obtenerSalidaPorId(id);
-
-    return this.prisma.salidaStream.delete({
+  async eliminarSalida(id: string): Promise<void> {
+    const salidaExistente = await this.prisma.salidaStream.findUnique({ 
       where: { id },
+      include: { entrada: true }
     });
+    if (!salidaExistente) {
+      throw new NotFoundException(`Salida con ID ${id} no encontrada.`);
+    }
+
+    // Obtener todos los outputs actuales ANTES de eliminar
+    const outputsActuales = await this.prisma.salidaStream.findMany({
+      where: { entradaId: salidaExistente.entradaId }
+    });
+    
+    // Convertir la salida eliminada a output
+    const outputEliminado = this.convertirSalidasAOutputs([salidaExistente])[0];
+    
+    // Eliminar de la base de datos
+    await this.prisma.salidaStream.delete({ where: { id } });
+    
+    // Obtener outputs restantes (excluyendo el eliminado)
+    const outputsRestantes = this.convertirSalidasAOutputs(
+      outputsActuales.filter(output => output.id !== id)
+    );
+
+    // Usar el nuevo método que no afecta otros outputs activos
+    await this.mediaMTXService.eliminarOutputEspecifico(
+      salidaExistente.entrada, 
+      outputEliminado, 
+      outputsRestantes
+    );
   }
 
-  // ===== MÉTODOS MEDIAMTX =====
-  async verificarMediaMTX() {
-    try {
-      const activo = await this.mediaMTXService.verificarEstado();
-      return {
-        activo,
-        mensaje: activo ? 'MediaMTX funcionando correctamente' : 'MediaMTX no responde',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      return {
-        activo: false,
-        mensaje: 'Error al verificar MediaMTX',
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      };
+  // ===== MÉTODOS DE ESTADO Y ESTADÍSTICAS =====
+
+  async obtenerEstadoOutputsEntrada(entradaId: string): Promise<any> {
+    const entrada = await this.prisma.entradaStream.findUnique({
+      where: { id: entradaId },
+      include: { salidas: true },
+    });
+
+    if (!entrada) {
+      throw new NotFoundException(`Entrada con ID ${entradaId} no encontrada.`);
     }
+
+    const pathName = this.mediaMTXService.calcularPathEntrada(entrada);
+    const estadoPath = await this.mediaMTXService.getEstadoPath(pathName);
+
+    // La API de MediaMTX no expone el estado de los 'runOnReady'.
+    // Devolvemos el estado del stream y la configuración de outputs que debería estar activa.
+    return {
+      entradaActiva: estadoPath?.ready || false,
+      bytesEnviados: estadoPath?.bytesSent || 0,
+      configuracionOutputs: this.convertirSalidasAOutputs(entrada.salidas),
+      pathName: pathName,
+      estadoPath: estadoPath || 'no_existe',
+    };
   }
 
-  async obtenerPathsMediaMTX() {
-    try {
-      const pathsList = await this.mediaMTXService.obtenerPaths();
-      return {
-        paths: pathsList.items,
-        total: pathsList.itemCount,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      return {
-        paths: [],
-        total: 0,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      };
-    }
-  }
+  async forzarSincronizacionEntrada(entradaId: string): Promise<any> {
+    const entrada = await this.prisma.entradaStream.findUnique({
+      where: { id: entradaId },
+      include: { salidas: true },
+    });
 
-  async obtenerEstadisticasMediaMTX() {
-    try {
-      return await this.mediaMTXService.obtenerEstadisticasGenerales();
-    } catch (error) {
-      return {
-        totalStreams: 0,
-        streamsActivos: 0,
-        totalBytesRecibidos: 0,
-        totalBytesEnviados: 0,
-        streams: [],
-        error: error.message,
-      };
+    if (!entrada) {
+      throw new NotFoundException(`Entrada con ID ${entradaId} no encontrada.`);
     }
+
+    this.logger.log(`Forzando sincronización con hot-reload para entrada ${entrada.nombre} (${entradaId})`);
+    
+    // Sincroniza usando el nuevo método que usa PATCH para hot-reload
+    const outputs = this.convertirSalidasAOutputs(entrada.salidas);
+    await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+    
+    return {
+      mensaje: `Sincronización con hot-reload completada para entrada '${entrada.nombre}'`,
+      entradaId: entradaId,
+      outputsConfiguratos: outputs.length,
+      timestamp: new Date().toISOString(),
+    };
   }
+  
+  // ... (verificarMediaMTX, obtenerPathsMediaMTX, obtenerEstadisticasMediaMTX pueden ser simplificados o eliminados si no se usan en el controller)
 
   private generarClaveUnica(): string {
     return randomBytes(16).toString('hex');
