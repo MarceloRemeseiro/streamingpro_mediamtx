@@ -152,14 +152,14 @@ export function CreateEntradaModal({ onEntradaCreada, trigger }: CreateEntradaMo
                         RTMP - Puerto 1935 (Stream Key automática)
                       </SelectItem>
                       <SelectItem value={ProtocoloStream.SRT}>
-                        SRT - Puerto 6000 (Stream ID automático)
+                        SRT - Puerto 8890 (Stream ID automático)
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
                     {protocoloSeleccionado === ProtocoloStream.RTMP
                       ? "RTMP usará el puerto 1935 y generará una Stream Key automáticamente."
-                      : "SRT usará el puerto 6000 y generará un Stream ID automáticamente."}
+                      : "SRT usará el puerto 8890 y generará un Stream ID automáticamente."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

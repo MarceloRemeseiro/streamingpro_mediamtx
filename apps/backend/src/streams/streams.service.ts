@@ -23,27 +23,52 @@ export class StreamsService {
   // ===== MÉTODOS HELPER =====
   
   private convertirSalidasAOutputs(salidas: SalidaStream[]): OutputPersonalizado[] {
-    return salidas.map(salida => {
+    this.logger.log(`🔄 DEBUGGING - Convirtiendo ${salidas.length} salidas a outputs:`);
+    
+    const outputs = salidas.map(salida => {
+      this.logger.log(`📋 Procesando salida: ${JSON.stringify({
+        id: salida.id,
+        nombre: salida.nombre,
+        protocolo: salida.protocolo,
+        urlDestino: salida.urlDestino,
+        passphraseSRT: salida.passphraseSRT,
+        streamIdSRT: salida.streamIdSRT,
+        latenciaSRT: salida.latenciaSRT,
+        claveStreamRTMP: salida.claveStreamRTMP,
+        habilitada: salida.habilitada
+      }, null, 2)}`);
+      
       const outputBase = {
         id: salida.id,
         nombre: salida.nombre,
+        protocolo: salida.protocolo,
         habilitada: salida.habilitada,
         urlDestino: salida.urlDestino || '',
       };
 
+      let resultado;
       switch (salida.protocolo) {
         case ProtocoloSalida.RTMP:
-          return { ...outputBase, claveStreamRTMP: salida.claveStreamRTMP } as OutputRTMP;
+          resultado = { ...outputBase, claveStreamRTMP: salida.claveStreamRTMP } as OutputRTMP;
+          break;
         case ProtocoloSalida.SRT:
-          return { ...outputBase, passphraseSRT: salida.passphraseSRT, latenciaSRT: salida.latenciaSRT, streamIdSRT: salida.streamIdSRT } as OutputSRT;
+          resultado = { ...outputBase, passphraseSRT: salida.passphraseSRT, latenciaSRT: salida.latenciaSRT, streamIdSRT: salida.streamIdSRT } as OutputSRT;
+          break;
         case ProtocoloSalida.HLS:
           // Nota: El output HLS vía FFmpeg es un caso de uso avanzado. Por ahora, se mantiene la estructura.
-          return { ...outputBase, segmentDuration: salida.segmentDuration } as OutputHLS;
+          resultado = { ...outputBase, segmentDuration: salida.segmentDuration } as OutputHLS;
+          break;
         default:
           this.logger.warn(`Protocolo de salida no soportado durante la conversión: ${salida.protocolo}`);
           return null;
       }
+      
+      this.logger.log(`✅ Output convertido: ${JSON.stringify(resultado, null, 2)}`);
+      return resultado;
     }).filter(output => output !== null);
+    
+    this.logger.log(`🎯 Total outputs convertidos: ${outputs.length}`);
+    return outputs;
   }
 
   private async sincronizarEntradaCompleta(entradaId: string): Promise<void> {
@@ -59,7 +84,7 @@ export class StreamsService {
       }
 
       const outputs = this.convertirSalidasAOutputs(entrada.salidas);
-      await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+      await this.mediaMTXService.configurarOutputsNativo(entrada, outputs);
 
     } catch (error) {
       this.logger.error(`Error al sincronizar entrada completa ${entradaId}:`, error.message);
@@ -67,26 +92,33 @@ export class StreamsService {
   }
 
   /**
-   * Sincroniza solo los outputs usando hot-reload (PATCH) para no interrumpir streams activos
+   * Sincroniza outputs usando HOT-RELOAD VERDADERO que preserva el HLS
    */
   private async sincronizarOutputsConHotReload(entradaId: string): Promise<void> {
     try {
+      // Obtener la entrada con sus salidas
       const entrada = await this.prisma.entradaStream.findUnique({
         where: { id: entradaId },
         include: { salidas: true },
       });
 
       if (!entrada) {
-        this.logger.error(`No se pudo sincronizar outputs: Entrada con ID ${entradaId} no encontrada.`);
-        return;
+        throw new NotFoundException(`Entrada con ID ${entradaId} no encontrada.`);
       }
 
-      this.logger.log(`Hot-reload de outputs para entrada '${entrada.nombre}' (${entrada.salidas.length} outputs)`);
+      this.logger.log(`🔥 HOT-RELOAD VERDADERO para entrada '${entrada.nombre}' (${entrada.salidas.length} outputs)`);
+      this.logger.log(`🛡️ Preservando stream HLS y configuración de MediaMTX`);
+
       const outputs = this.convertirSalidasAOutputs(entrada.salidas);
-      await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+      
+      // Usar HOT-RELOAD VERDADERO que NO toca la configuración de MediaMTX
+      await this.mediaMTXService.configurarOutputsHotReload(entrada, outputs);
+
+      this.logger.log(`✅ Hot-reload verdadero completado para '${entrada.nombre}' - HLS preservado`);
 
     } catch (error) {
-      this.logger.error(`Error al hacer hot-reload de outputs ${entradaId}:`, error.message);
+      this.logger.error(`❌ Error en hot-reload verdadero: ${error.message}`);
+      throw error;
     }
   }
 
@@ -166,8 +198,8 @@ export class StreamsService {
       };
     } else if (crearEntradaDto.protocolo === ProtocoloStream.SRT) {
       const streamPath = this.generarClaveUnica();
-      // El streamId para SRT debe ser compatible con la especificación de MediaMTX
-      const streamId = `#!::r=${streamPath},m=publish`;
+      // Formato simple compatible con OBS y MediaMTX
+      const streamId = `publish:${streamPath}`;
       const passphraseSRT = crearEntradaDto.incluirPassphrase ? this.generarClaveUnica() : undefined;
       
       datosEntrada = {
@@ -276,16 +308,24 @@ export class StreamsService {
   // ===== MÉTODOS PARA SALIDAS =====
 
   async crearSalida(entradaId: string, crearSalidaDto: CrearSalidaDto): Promise<SalidaStream> {
+    const entrada = await this.prisma.entradaStream.findUnique({
+      where: { id: entradaId },
+    });
+    if (!entrada) {
+      throw new NotFoundException(`Entrada con ID ${entradaId} no encontrada.`);
+    }
+
     const nuevaSalida = await this.prisma.salidaStream.create({
       data: { 
         ...crearSalidaDto, 
         entradaId,
-        // Por defecto, los outputs se crean deshabilitados
         habilitada: crearSalidaDto.habilitada ?? false
       },
     });
-    // Hot-reload: solo actualiza runOnReady sin interrumpir el stream
+    
+    // Sincronización nativa simple al crear
     await this.sincronizarOutputsConHotReload(entradaId);
+    
     return nuevaSalida;
   }
 
@@ -380,16 +420,23 @@ export class StreamsService {
   }
 
   async actualizarSalida(id: string, actualizarSalidaDto: ActualizarSalidaDto): Promise<SalidaStream> {
-    const salidaExistente = await this.prisma.salidaStream.findUnique({ where: { id } });
+    const salidaExistente = await this.prisma.salidaStream.findUnique({
+      where: { id },
+      include: { entrada: true } 
+    });
     if (!salidaExistente) {
       throw new NotFoundException(`Salida con ID ${id} no encontrada.`);
     }
+
     const salidaActualizada = await this.prisma.salidaStream.update({
       where: { id },
       data: actualizarSalidaDto,
+      include: { entrada: true }
     });
-    // Hot-reload: solo actualiza runOnReady sin interrumpir el stream
+
+    // Sincronización nativa simple al actualizar
     await this.sincronizarOutputsConHotReload(salidaActualizada.entradaId);
+    
     return salidaActualizada;
   }
 
@@ -402,28 +449,13 @@ export class StreamsService {
       throw new NotFoundException(`Salida con ID ${id} no encontrada.`);
     }
 
-    // Obtener todos los outputs actuales ANTES de eliminar
-    const outputsActuales = await this.prisma.salidaStream.findMany({
-      where: { entradaId: salidaExistente.entradaId }
-    });
-    
-    // Convertir la salida eliminada a output
-    const outputEliminado = this.convertirSalidasAOutputs([salidaExistente])[0];
+    const entradaId = salidaExistente.entradaId;
     
     // Eliminar de la base de datos
     await this.prisma.salidaStream.delete({ where: { id } });
     
-    // Obtener outputs restantes (excluyendo el eliminado)
-    const outputsRestantes = this.convertirSalidasAOutputs(
-      outputsActuales.filter(output => output.id !== id)
-    );
-
-    // Usar el nuevo método que no afecta otros outputs activos
-    await this.mediaMTXService.eliminarOutputEspecifico(
-      salidaExistente.entrada, 
-      outputEliminado, 
-      outputsRestantes
-    );
+    // Sincronización nativa simple al eliminar
+    await this.sincronizarOutputsConHotReload(entradaId);
   }
 
   // ===== MÉTODOS DE ESTADO Y ESTADÍSTICAS =====
@@ -462,16 +494,15 @@ export class StreamsService {
       throw new NotFoundException(`Entrada con ID ${entradaId} no encontrada.`);
     }
 
-    this.logger.log(`Forzando sincronización con hot-reload para entrada ${entrada.nombre} (${entradaId})`);
+    this.logger.log(`Forzando sincronización con hot-reload verdadero para entrada ${entrada.nombre} (${entradaId})`);
     
-    // Sincroniza usando el nuevo método que usa PATCH para hot-reload
-    const outputs = this.convertirSalidasAOutputs(entrada.salidas);
-    await this.mediaMTXService.sincronizarEntradaConOutputs(entrada, outputs);
+    // Usar hot-reload verdadero que no mata conexiones
+    await this.sincronizarOutputsConHotReload(entradaId);
     
     return {
-      mensaje: `Sincronización con hot-reload completada para entrada '${entrada.nombre}'`,
+      mensaje: `Sincronización con hot-reload verdadero completada para entrada '${entrada.nombre}'`,
       entradaId: entradaId,
-      outputsConfiguratos: outputs.length,
+      outputsConfiguratos: entrada.salidas.length,
       timestamp: new Date().toISOString(),
     };
   }

@@ -55,29 +55,11 @@ services:
       - '9997:9997'
       # HLS
       - '8080:8080'
-    environment:
-      # Configuración básica MediaMTX
-      - MTX_PROTOCOLS=tcp
-      - MTX_WEBRTCADDITIONALHOSTS=localhost
-      # Habilitar HLS
-      - MTX_HLS=yes
-      - MTX_HLSADDRESS=:8080
-      # Habilitar API Control
-      - MTX_API=yes
-      - MTX_APIADDRESS=:9997
-      # Configurar usuario para API (formato: usuario:contraseña)
-      - MTX_AUTHINTERNALUSERS_0_USER=admin
-      - MTX_AUTHINTERNALUSERS_0_PASS=admin123
-      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION=api
-      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_1_ACTION=read
-      - MTX_AUTHINTERNALUSERS_0_PERMISSIONS_2_ACTION=publish
-      # Logs
-      - MTX_LOGLEVEL=info
     volumes:
       # Directorio para archivos HLS
       - mediamtx_hls:/tmp/hls
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9997/v3/config/global/get"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9997/v3/paths/list"]
       interval: 30s
       timeout: 10s
       retries: 3

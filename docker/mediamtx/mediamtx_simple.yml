@@ -1,0 +1,43 @@
+# MediaMTX Configuration Simple - Sin autenticación para desarrollo
+logLevel: info
+
+# API sin autenticación
+api: true
+apiAddress: :9997
+apiAllowOrigin: '*'
+
+# Protocolos
+rtsp: true
+rtspAddress: :8554
+
+rtmp: true
+rtmpAddress: :1935
+
+hls: true
+hlsAddress: :8888
+hlsAllowOrigin: '*'
+hlsVariant: fmp4
+hlsSegmentCount: 7
+hlsSegmentDuration: 2s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+
+webrtc: true
+webrtcAddress: :8889
+webrtcAllowOrigin: '*'
+webrtcLocalUDPAddress: :8189
+webrtcIPsFromInterfaces: true
+
+srt: true
+srtAddress: :8890
+
+# Configuración de paths
+pathDefaults:
+  source: publisher
+  overridePublisher: true
+  record: false
+  recordFormat: fmp4
+
+paths:
+  all_others:
+    source: publisher 

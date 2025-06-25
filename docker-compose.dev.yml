@@ -1,0 +1,122 @@
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    container_name: streamingpro_postgres_dev
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: streamingpro_dev_db
+      POSTGRES_USER: user_streaming
+      POSTGRES_PASSWORD: password_streaming
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_streaming -d streamingpro_dev_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamingpro-network
+
+  # Base de datos PostgreSQL para tests
+  postgres-test:
+    container_name: streamingpro_postgres_test_dev
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: streamingpro_test_db
+      POSTGRES_USER: user_streaming
+      POSTGRES_PASSWORD: password_streaming
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_streaming -d streamingpro_test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamingpro-network
+
+  # Backend NestJS con hot-reload
+  backend:
+    container_name: streamingpro_backend_dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://user_streaming:password_streaming@postgres:5432/streamingpro_dev_db?schema=public
+      - DATABASE_TEST_URL=postgresql://user_streaming:password_streaming@postgres-test:5432/streamingpro_test_db?schema=public
+      # MediaMTX Configuration
+      - MEDIAMTX_API_URL=http://mediamtx:9997
+      - MEDIAMTX_API_USER=admin
+      - MEDIAMTX_API_PASS=admin123
+      - MEDIAMTX_HLS_PORT=8888
+    volumes:
+      # Solo montar el código fuente para hot-reload
+      - ./apps/backend/src:/app/apps/backend/src:ro
+      - ./apps/backend/prisma:/app/apps/backend/prisma:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - streamingpro-network
+
+  # Frontend Next.js con hot-reload
+  frontend:
+    container_name: streamingpro_frontend_dev
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile.dev
+    ports:
+      - "3001:3001" # Frontend
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - HOSTNAME=0.0.0.0
+    volumes:
+      # Montar todo el proyecto para hot-reload, excluyendo node_modules
+      - .:/app
+      - /app/node_modules
+      # Volumen para el directorio de compilación de Next.js (aislado para evitar conflictos)
+      - /app/apps/frontend/.next
+    networks:
+      - streamingpro-network
+    # Comando para desarrollo con hot-reload usando pnpm filter
+    command: pnpm --filter frontend exec next dev --port 3001 --hostname 0.0.0.0
+
+  # MediaMTX para streaming
+  mediamtx:
+    container_name: streamingpro_mediamtx_dev
+    build:
+      context: docker/mediamtx
+      dockerfile: Dockerfile
+    ports:
+      - "8554:8554"    # RTSP
+      - "8888:8888"    # HLS
+      - "8889:8889"    # WebRTC
+      - "9997:9997"    # API
+      - "1935:1935"    # RTMP
+      - "8890:8890/udp"    # SRT (UDP)
+      - "8890:8890/tcp"    # SRT también puede usar TCP
+    volumes:
+      - ./docker/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - streamingpro-network
+
+volumes:
+  postgres_dev_data:
+  postgres_test_data:
+
+networks:
+  streamingpro-network:
+    driver: bridge 

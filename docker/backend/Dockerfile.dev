@@ -1,0 +1,56 @@
+FROM node:20-alpine AS base
+
+# Instalar dependencias del sistema necesarias
+RUN apk add --no-cache bash curl git openssl
+
+# Configurar pnpm
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+
+# Crear usuario no-root
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nestjs
+
+# ============================================
+# STAGE: Installer
+# ============================================
+FROM base AS installer
+
+# Copiar archivos de configuración del workspace
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json ./
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
+
+# Instalar dependencias SIN ejecutar scripts (evita prisma generate prematuro)
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Copiar código fuente
+COPY . .
+
+# Ahora ejecutar prisma generate con el schema real
+RUN cd apps/backend && pnpm exec prisma generate
+
+# ============================================
+# STAGE: Development
+# ============================================
+FROM base AS development
+
+# Copiar node_modules y código desde installer
+COPY --from=installer --chown=nestjs:nodejs /app .
+
+# Copiar script de inicio
+COPY --chown=nestjs:nodejs docker/backend/start-dev.sh /app/start-dev.sh
+RUN chmod +x /app/start-dev.sh
+
+# Cambiar al usuario no-root
+USER nestjs
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando para desarrollo
+CMD ["/app/start-dev.sh"] 

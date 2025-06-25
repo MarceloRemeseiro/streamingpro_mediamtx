@@ -23,6 +23,7 @@ import { useCollapseState } from '@/lib/hooks';
 import { StreamVideoSection } from './stream-video-section';
 import { StreamConnectionData } from './stream-connection-data';
 import { StreamOutputsSection } from './stream-outputs-section';
+import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
 
 interface StreamInputCardProps {
   entrada: EntradaStream;
@@ -57,12 +58,18 @@ export function StreamInputCard({
     !['SRT Pull', 'RTMP Pull', 'HLS'].includes(salida.nombre)
   );
 
-  const copiarAlPortapapeles = (texto: string) => {
-    navigator.clipboard.writeText(texto);
+  const { copyToClipboard } = useCopyToClipboard();
+
+  const copiarAlPortapapeles = (texto: string, label?: string) => {
+    copyToClipboard(texto, label);
   };
 
   const obtenerStreamIdLimpio = (streamId: string) => {
-    // Extraer solo el hash del streamId de MediaMTX (#!::r=HASH,m=publish)
+    // Para el nuevo formato simple: publish:HASH -> extraer solo HASH
+    if (streamId.startsWith('publish:')) {
+      return streamId.replace('publish:', '');
+    }
+    // Fallback para el formato antiguo (#!::r=HASH,m=publish) si existe
     return streamId.replace('#!::r=', '').replace(',m=publish', '');
   };
 
@@ -83,9 +90,9 @@ export function StreamInputCard({
       const baseUrl = `srt://localhost:${entrada.puertoSRT}`;
       const params: string[] = [];
       
-      // Agregar streamid si existe
+      // El streamId ya viene con formato "publish:HASH" desde el backend
       if (entrada.streamId) {
-        params.push(`streamid=publish:${obtenerStreamIdLimpio(entrada.streamId)}`);
+        params.push(`streamid=${entrada.streamId}`);
       }
       
       // Agregar passphrase si existe

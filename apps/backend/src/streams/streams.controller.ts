@@ -1,13 +1,20 @@
-import { Controller, Post, Body, Get, Param, Put, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Put, Delete, Patch, InternalServerErrorException } from '@nestjs/common';
 import { StreamsService } from './streams.service';
 import { CrearEntradaDto } from './dto/crear-entrada.dto';
 import { ActualizarEntradaDto } from './dto/actualizar-entrada.dto';
 import { CrearSalidaDto } from './dto/crear-salida.dto';
 import { ActualizarSalidaDto } from './dto/actualizar-salida.dto';
+import { MediaMTXService } from '../mediamtx/mediamtx.service';
+import { Logger } from '@nestjs/common';
 
 @Controller('streams')
 export class StreamsController {
-  constructor(private readonly streamsService: StreamsService) {}
+  private readonly logger = new Logger(StreamsController.name);
+
+  constructor(
+    private readonly streamsService: StreamsService,
+    private readonly mediaMTXService: MediaMTXService
+  ) {}
 
   @Post('entradas')
   crearEntrada(@Body() crearEntradaDto: CrearEntradaDto) {
@@ -116,5 +123,38 @@ export class StreamsController {
       },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Get('debug/mediamtx-nativo/:id')
+  async debugAPINativa(@Param('id') id: string) {
+    this.logger.log(`🚀 Testing API nativa para entrada: ${id}`);
+    
+    try {
+      // Obtener configuración actual de paths
+      const configuracion = await this.mediaMTXService.obtenerConfiguracionPaths();
+      
+      // Simular sincronización nativa
+             const entrada = await this.streamsService.obtenerEntradaPorId(id);
+      if (!entrada) {
+        throw new Error(`Entrada ${id} no encontrada`);
+      }
+
+      const outputs = entrada.salidas.filter(s => !['SRT Pull', 'RTMP Pull', 'HLS'].includes(s.nombre));
+      
+             // Calcular path usando MediaMTX service
+       const pathCalculado = this.mediaMTXService.calcularPathEntrada(entrada);
+       
+       return {
+         mensaje: '✅ Prueba de API nativa exitosa',
+         entrada: entrada.nombre,
+         path: pathCalculado,
+         outputsPersonalizados: outputs.length,
+         configuracionActual: configuracion
+       };
+      
+    } catch (error) {
+      this.logger.error(`❌ Error en prueba API nativa: ${error.message}`);
+      throw new InternalServerErrorException(`Error API nativa: ${error.message}`);
+    }
   }
 }

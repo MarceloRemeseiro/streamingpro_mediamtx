@@ -14,12 +14,11 @@ ARG MEDIAMTX_VERSION=v1.9.0
 RUN wget https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     tar -xzf mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     mv mediamtx /usr/local/bin/mediamtx && \
-    rm mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz mediamtx.yml && \
+    rm mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     chmod +x /usr/local/bin/mediamtx
 
-# Copiar el script gestor de outputs
-COPY docker/mediamtx/output-manager.sh /usr/local/bin/output-manager.sh
-RUN chmod +x /usr/local/bin/output-manager.sh
+# Copiar nuestra configuración personalizada (desde el contexto de construcción)
+COPY mediamtx.yml /mediamtx.yml
 
 # Crear usuario no-root
 RUN addgroup -g 1000 appuser && \
@@ -29,7 +28,7 @@ RUN addgroup -g 1000 appuser && \
 USER appuser
 
 # Exponer puertos
-EXPOSE 8554 1935 8888 8889 8890/udp 9997 8080
+EXPOSE 8554 1935 8888 8889 8890/udp 9997 8080 9998
 
 # Entrypoint
 ENTRYPOINT ["/usr/local/bin/mediamtx"] 

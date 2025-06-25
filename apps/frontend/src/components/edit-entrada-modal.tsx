@@ -128,7 +128,7 @@ export function EditEntradaModal({ entrada, onEntradaActualizada, trigger }: Edi
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{entrada.protocolo}</span>
                   <span className="text-sm text-muted-foreground">
-                    {entrada.protocolo === ProtocoloStream.RTMP ? "Puerto 1935" : "Puerto 6000"}
+                    {entrada.protocolo === ProtocoloStream.RTMP ? "Puerto 1935" : "Puerto 8890"}
                   </span>
                 </div>
                 {entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey && (

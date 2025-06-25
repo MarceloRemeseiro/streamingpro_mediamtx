@@ -14,6 +14,7 @@ import { OutputSwitchConfirm } from './output-switch-confirm';
 import { EditSalidaModal } from './edit-salida-modal';
 import { DeleteSalidaConfirm } from './delete-salida-confirm';
 import { CreateSalidaModal } from './create-salida-modal';
+import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
 
 interface StreamOutputsSectionProps {
   isExpanded: boolean;
@@ -40,8 +41,11 @@ export function StreamOutputsSection({
   showCreateButton = false,
   isDefaultOutputs = false
 }: StreamOutputsSectionProps) {
-  const copiarAlPortapapeles = (texto: string) => {
-    navigator.clipboard.writeText(texto);
+  const { copyToClipboard } = useCopyToClipboard();
+
+  const copiarAlPortapapeles = (texto: string, salida: SalidaStream) => {
+    const label = `URL de ${salida.nombre}`;
+    copyToClipboard(texto, label);
   };
 
   return (
@@ -81,7 +85,7 @@ export function StreamOutputsSection({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => copiarAlPortapapeles(salida.urlDestino || '')}
+                    onClick={() => copiarAlPortapapeles(salida.urlDestino || '', salida)}
                     title="Copiar URL"
                   >
                     <Copy className="h-4 w-4" />

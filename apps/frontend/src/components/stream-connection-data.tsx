@@ -15,7 +15,7 @@ interface StreamConnectionDataProps {
   onToggle: (expanded: boolean) => void;
   entrada: EntradaStream;
   connectionUrl: string;
-  onCopyToClipboard: (text: string) => void;
+  onCopyToClipboard: (text: string, label?: string) => void;
   getCleanStreamId: (streamId: string) => string;
 }
 
@@ -54,7 +54,7 @@ export function StreamConnectionData({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard('srt://localhost')}
+                    onClick={() => onCopyToClipboard('srt://localhost', 'URL SRT')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -89,7 +89,7 @@ export function StreamConnectionData({
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 shrink-0"
-                      onClick={() => onCopyToClipboard(`publish:${getCleanStreamId(entrada.streamId!)}`)}
+                      onClick={() => onCopyToClipboard(`publish:${getCleanStreamId(entrada.streamId!)}`, 'Stream ID')}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -101,8 +101,16 @@ export function StreamConnectionData({
               {entrada.passphraseSRT && (
                 <div className="space-y-2">
                   <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Passphrase</span>
-                  <div className="p-3 bg-muted rounded-lg">
-                    <code className="text-sm font-mono break-all">{entrada.passphraseSRT}</code>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <code className="flex-1 text-sm font-mono break-all">{entrada.passphraseSRT}</code>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => onCopyToClipboard(entrada.passphraseSRT!, 'Passphrase')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               )}
@@ -118,7 +126,7 @@ export function StreamConnectionData({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard(connectionUrl)}
+                    onClick={() => onCopyToClipboard(connectionUrl, 'URL completa SRT')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -141,7 +149,7 @@ export function StreamConnectionData({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard('rtmp://localhost')}
+                    onClick={() => onCopyToClipboard('rtmp://localhost', 'URL RTMP')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -168,7 +176,7 @@ export function StreamConnectionData({
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 shrink-0"
-                      onClick={() => onCopyToClipboard(entrada.streamKey!)}
+                      onClick={() => onCopyToClipboard(entrada.streamKey!, 'Stream Key')}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -187,7 +195,7 @@ export function StreamConnectionData({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard(connectionUrl)}
+                    onClick={() => onCopyToClipboard(connectionUrl, 'URL completa RTMP')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>

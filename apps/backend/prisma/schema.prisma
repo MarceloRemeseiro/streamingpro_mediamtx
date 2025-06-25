@@ -1,12 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/prisma/generated/client"
+  provider      = "prisma-client-js"
+  output        = "../src/prisma/generated/client"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -14,7 +9,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -- ENUMERATIONS
+model Usuario {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  password           String
+  rol                RolUsuario          @default(TECNICO)
+  secreto2FA         String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  registrosAuditoria RegistroAuditoria[]
+}
+
+model EntradaStream {
+  id            String          @id @default(cuid())
+  nombre        String
+  protocolo     ProtocoloStream
+  puertoSRT     Int?
+  latenciaSRT   Int?            @default(200)
+  passphraseSRT String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  streamId      String?
+  streamKey     String?         @unique
+  url           String
+  salidas       SalidaStream[]
+}
+
+model SalidaStream {
+  id              String          @id @default(cuid())
+  nombre          String
+  habilitada      Boolean         @default(false)
+  entradaId       String
+  urlDestino      String?
+  passphraseSRT   String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  claveStreamRTMP String?
+  latenciaSRT     Int?            @default(120)
+  playlistLength  Int?            @default(5)
+  protocolo       ProtocoloSalida
+  puertoSRT       Int?
+  segmentDuration Int?            @default(6)
+  streamIdSRT     String?
+  entrada         EntradaStream   @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+}
+
+model RegistroAuditoria {
+  id        String   @id @default(cuid())
+  accion    String
+  detalles  Json?
+  usuarioId String
+  createdAt DateTime @default(now())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
 enum RolUsuario {
   ADMIN
   TECNICO
@@ -28,86 +76,7 @@ enum ProtocoloStream {
 
 enum ProtocoloSalida {
   RTMP
-  RTMPS
   SRT
   HLS
-}
-
-// -- MODELS
-model Usuario {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  password    String
-  rol         RolUsuario @default(TECNICO)
-  secreto2FA  String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  registrosAuditoria RegistroAuditoria[]
-}
-
-model EntradaStream {
-  id              String   @id @default(cuid())
-  nombre          String
-  protocolo       ProtocoloStream
-  
-  // URL generada automáticamente
-  url             String
-  
-  // RTMP specific
-  streamKey       String?  @unique // Generada automáticamente
-  
-  // SRT specific
-  puertoSRT       Int?     // Puerto fijo (6000)
-  latenciaSRT     Int?     @default(200) // ms
-  passphraseSRT   String?  // Generada si se solicita
-  streamId        String?  // Generado SIEMPRE para SRT
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  salidas         SalidaStream[]
-}
-
-model SalidaStream {
-  id              String   @id @default(cuid())
-  nombre          String
-  habilitada      Boolean  @default(false)
-  protocolo       ProtocoloSalida
-  
-  // Foreign Key
-  entradaId       String
-  entrada         EntradaStream @relation(fields: [entradaId], references: [id], onDelete: Cascade)
-
-  // Destination URL (for RTMP/SRT push, or HLS manifest path)
-  urlDestino      String?
-  
-  // RTMP specific
-  claveStreamRTMP String?
-  
-  // SRT specific
-  puertoSRT       Int?
-  passphraseSRT   String?
-  latenciaSRT     Int?     @default(120)
-  streamIdSRT     String?
-  
-  // HLS specific
-  segmentDuration Int?     @default(6) // seconds
-  playlistLength  Int?     @default(5) // number of segments
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model RegistroAuditoria {
-  id          String   @id @default(cuid())
-  accion      String
-  detalles    Json?
-  
-  // Foreign Key
-  usuarioId   String
-  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
-
-  createdAt   DateTime @default(now())
+  RTMPS
 }

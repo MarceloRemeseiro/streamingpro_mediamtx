@@ -3,10 +3,10 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true,
+    "deleteOutDir": false,
+    "webpack": true,
     "assets": [
-      "prisma/schema.prisma",
-      "prisma/generated/**/*"
+      { "include": "prisma/**", "outDir": "./dist/" }
     ],
     "watchAssets": true
   }
