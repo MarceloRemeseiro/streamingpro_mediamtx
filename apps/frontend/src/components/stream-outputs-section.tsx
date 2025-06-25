@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { SalidaStream } from '@/types/streaming';
 import { OutputSwitchConfirm } from './output-switch-confirm';
 import { EditSalidaModal } from './edit-salida-modal';
@@ -25,6 +25,7 @@ interface StreamOutputsSectionProps {
   onActualizarSalida: (salidaId: string, habilitada: boolean) => void;
   onEntradaActualizada: () => void;
   showCreateButton?: boolean;
+  isDefaultOutputs?: boolean;
 }
 
 export function StreamOutputsSection({ 
@@ -36,8 +37,13 @@ export function StreamOutputsSection({
   entradaId,
   onActualizarSalida,
   onEntradaActualizada,
-  showCreateButton = false
+  showCreateButton = false,
+  isDefaultOutputs = false
 }: StreamOutputsSectionProps) {
+  const copiarAlPortapapeles = (texto: string) => {
+    navigator.clipboard.writeText(texto);
+  };
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
@@ -70,19 +76,33 @@ export function StreamOutputsSection({
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <OutputSwitchConfirm
-                  isEnabled={salida.habilitada}
-                  outputName={salida.nombre}
-                  onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
-                />
-                <EditSalidaModal
-                  salida={salida}
-                  onSalidaActualizada={onEntradaActualizada}
-                />
-                <DeleteSalidaConfirm
-                  salida={salida}
-                  onSalidaEliminada={onEntradaActualizada}
-                />
+                {isDefaultOutputs ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => copiarAlPortapapeles(salida.urlDestino || '')}
+                    title="Copiar URL"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <>
+                    <OutputSwitchConfirm
+                      isEnabled={salida.habilitada}
+                      outputName={salida.nombre}
+                      onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
+                    />
+                    <EditSalidaModal
+                      salida={salida}
+                      onSalidaActualizada={onEntradaActualizada}
+                    />
+                    <DeleteSalidaConfirm
+                      salida={salida}
+                      onSalidaEliminada={onEntradaActualizada}
+                    />
+                  </>
+                )}
               </div>
             </div>
           ))}

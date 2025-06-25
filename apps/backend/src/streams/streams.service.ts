@@ -91,6 +91,65 @@ export class StreamsService {
   }
 
   // ===== MÉTODOS PARA ENTRADAS =====
+
+  /**
+   * Crea los 3 outputs por defecto para una entrada: HLS, SRT Pull y RTMP Pull
+   * Todos configurados para funcionar en VLC con baja latencia
+   */
+  private async crearOutputsPorDefecto(entradaId: string): Promise<void> {
+    try {
+      const entrada = await this.prisma.entradaStream.findUnique({
+        where: { id: entradaId }
+      });
+
+      if (!entrada) {
+        this.logger.error(`No se puede crear outputs por defecto: Entrada ${entradaId} no encontrada`);
+        return;
+      }
+
+      const pathName = this.mediaMTXService.calcularPathEntrada(entrada);
+
+      // 1. HLS - URL para consumo directo (misma que usa el frontend)
+      await this.prisma.salidaStream.create({
+        data: {
+          nombre: 'HLS',
+          protocolo: ProtocoloSalida.HLS,
+          entradaId,
+          habilitada: true, // Siempre disponible
+          urlDestino: this.urlGenerator.generateHlsUrl(pathName), // URL HLS real
+        }
+      });
+
+      // 2. SRT Caller - URL para consumo directo desde VLC (formato MediaMTX)
+      await this.prisma.salidaStream.create({
+        data: {
+          nombre: 'SRT Pull',
+          protocolo: ProtocoloSalida.SRT,
+          entradaId,
+          habilitada: true, // Siempre disponible
+          urlDestino: `srt://localhost:8890?streamid=read:${pathName}`,
+          puertoSRT: 8890, // Mismo puerto que la entrada
+          latenciaSRT: 40,
+        }
+      });
+
+      // 3. RTMP - URL para consumo directo desde VLC (path directo)
+      await this.prisma.salidaStream.create({
+        data: {
+          nombre: 'RTMP Pull',
+          protocolo: ProtocoloSalida.RTMP,
+          entradaId,
+          habilitada: true, // Siempre disponible
+          urlDestino: `rtmp://localhost:1935/${pathName}`, // Path directo sin .stream
+        }
+      });
+
+      this.logger.log(`Outputs por defecto creados para entrada '${entrada.nombre}': HLS, SRT Pull, RTMP Pull`);
+
+    } catch (error) {
+      this.logger.error(`Error al crear outputs por defecto para entrada ${entradaId}:`, error.message);
+    }
+  }
   
   async crearEntrada(crearEntradaDto: CrearEntradaDto): Promise<EntradaStream> {
     let datosEntrada: any = {
@@ -123,7 +182,10 @@ export class StreamsService {
 
     const entrada = await this.prisma.entradaStream.create({ data: datosEntrada });
 
-    // Crea la configuración del path en MediaMTX de forma preventiva, sin outputs.
+    // Crear outputs por defecto automáticamente
+    await this.crearOutputsPorDefecto(entrada.id);
+
+    // Crea la configuración del path en MediaMTX de forma preventiva, con outputs por defecto.
     await this.sincronizarEntradaCompleta(entrada.id);
 
     return entrada;

@@ -78,28 +78,28 @@ export function StreamInputCard({
   };
 
   const obtenerUrlConexion = () => {
-    // Para SRT, construir la URL completa con todos los parámetros
+    // Para SRT, construir la URL completa con todos los parámetros SIN codificación
     if (entrada.protocolo === ProtocoloStream.SRT) {
       const baseUrl = `srt://localhost:${entrada.puertoSRT}`;
-      const params = new URLSearchParams();
+      const params: string[] = [];
       
       // Agregar streamid si existe
       if (entrada.streamId) {
-        params.append('streamid', `publish:${obtenerStreamIdLimpio(entrada.streamId)}`);
+        params.push(`streamid=publish:${obtenerStreamIdLimpio(entrada.streamId)}`);
       }
       
       // Agregar passphrase si existe
       if (entrada.passphraseSRT) {
-        params.append('passphrase', entrada.passphraseSRT);
+        params.push(`passphrase=${entrada.passphraseSRT}`);
       }
       
       // Agregar latencia si existe
       if (entrada.latenciaSRT) {
-        params.append('latency', entrada.latenciaSRT.toString());
+        params.push(`latency=${entrada.latenciaSRT}`);
       }
       
-      // Construir URL final
-      const finalUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+      // Construir URL final sin codificación
+      const finalUrl = params.length > 0 ? `${baseUrl}?${params.join('&')}` : baseUrl;
       return finalUrl;
     }
     
@@ -194,6 +194,7 @@ export function StreamInputCard({
           onActualizarSalida={onActualizarSalida}
           onEntradaActualizada={onEntradaActualizada}
           showCreateButton={false}
+          isDefaultOutputs={true}
         />
 
         {/* Outputs Personalizados */}
@@ -207,6 +208,7 @@ export function StreamInputCard({
           onActualizarSalida={onActualizarSalida}
           onEntradaActualizada={onEntradaActualizada}
           showCreateButton={true}
+          isDefaultOutputs={false}
         />
       </CardContent>
     </Card>

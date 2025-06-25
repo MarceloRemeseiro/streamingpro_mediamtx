@@ -64,6 +64,10 @@ start_output() {
         "SRT")
             ffmpeg_cmd="$ffmpeg_cmd -f mpegts \"$full_url\""
             ;;
+        "HLS")
+            log "INFO: Output HLS '$output_name' se maneja automáticamente por MediaMTX - omitiendo"
+            return 0
+            ;;
         *)
             log "ERROR: Protocolo '$protocol' no soportado para output '$output_name'"
             return 1
@@ -206,6 +210,12 @@ sync_outputs() {
         local protocol=$(echo "$output" | jq -r '.protocolo')
         local url=$(echo "$output" | jq -r '.urlDestino')
         local stream_key=$(echo "$output" | jq -r '.claveStreamRTMP // .streamIdSRT // empty')
+        
+        # Omitir outputs HLS (se manejan automáticamente por MediaMTX)
+        if [[ "$protocol" == "HLS" ]]; then
+            log "INFO: Output HLS '$output_name' habilitado - MediaMTX lo maneja automáticamente"
+            continue
+        fi
         
         # Verificar si ya está corriendo
         local pid_file="$PID_DIR/output_${output_id}.pid"
