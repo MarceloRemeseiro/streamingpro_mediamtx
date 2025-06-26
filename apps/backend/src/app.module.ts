@@ -6,6 +6,7 @@ import { EntradaModule } from './entrada/entrada.module';
 import { SalidaModule } from './salida/salida.module';
 import { EstadoModule } from './estado/estado.module';
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
+import { MediaMtxModule } from './media-mtx/media-mtx.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { EstadisticasModule } from './estadisticas/estadisticas.module';
     EntradaModule,
     SalidaModule,
     EstadoModule,
-    EstadisticasModule
+    EstadisticasModule,
+    MediaMtxModule,
   ],
 })
 export class AppModule {}

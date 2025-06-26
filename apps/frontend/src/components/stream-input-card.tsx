@@ -79,8 +79,6 @@ export function StreamInputCard({
     console.log('Entrada completa:', entrada);
     console.log('URL de conexión:', obtenerUrlConexion());
     console.log('URL de video:', obtenerUrlHLS());
-    console.log('Estado activo:', entrada.activo);
-    console.log('URL del backend:', entrada.hlsUrl);
     console.log('==================');
   };
 
@@ -115,30 +113,39 @@ export function StreamInputCard({
   };
 
   const obtenerUrlHLS = () => {
-    // Usar hlsUrl del backend si está disponible (ya incluye la configuración correcta)
-    if (entrada.hlsUrl) {
-      return entrada.hlsUrl;
+    // La fuente de verdad es la URL de la salida 'HLS' generada por el backend.
+    const hlsSalida = entrada.salidas.find(
+      (s) => s.protocolo === 'HLS' || s.nombre === 'HLS'
+    );
+
+    if (hlsSalida && hlsSalida.urlDestino) {
+      // Usar la URL completa del backend para evitar problemas de CORS o rutas relativas.
+      // Reemplazamos 'localhost' con la IP del host si es necesario,
+      // pero para desarrollo local 'localhost' debería funcionar si el navegador
+      // puede resolverlo correctamente.
+      return hlsSalida.urlDestino;
     }
+
+    console.warn('No se encontró una salida HLS con urlDestino en la entrada:', entrada);
     
-    // Fallback: generar URL HLS según el protocolo de entrada
-    if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
-      const fallbackUrl = `live/${entrada.streamKey}`;
-      return fallbackUrl;
-    } else if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
-      // Extraer el path del streamId (formato: publish:path)
+    // Fallback muy básico, pero no debería ser necesario.
+    if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
       const streamPath = entrada.streamId.replace('publish:', '');
-      return streamPath;
+      return `http://localhost:8888/${streamPath}/index.m3u8`;
     }
     
     return null;
   };
+
+  const hlsUrl = obtenerUrlHLS();
+  const isActive = !!hlsUrl;
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full border-2 ${entrada.activo ?? false ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
+            <div className={`w-3 h-3 rounded-full border-2 ${isActive ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
                           <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
                           <Badge 
                 variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}
@@ -176,8 +183,8 @@ export function StreamInputCard({
         <StreamVideoSection
           isExpanded={videoExpanded}
           onToggle={setVideoExpanded}
-          hlsUrl={obtenerUrlHLS()}
-          isActive={entrada.activo ?? false}
+          hlsUrl={hlsUrl}
+          isActive={isActive}
         />
 
         {/* Sección de Datos de Conexión */}
