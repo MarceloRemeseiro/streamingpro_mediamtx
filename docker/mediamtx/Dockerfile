@@ -10,7 +10,7 @@ RUN apk add --no-cache \
     ca-certificates
 
 # Descargar e instalar MediaMTX
-ARG MEDIAMTX_VERSION=v1.9.0
+ARG MEDIAMTX_VERSION=v1.12.3
 RUN wget https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     tar -xzf mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     mv mediamtx /usr/local/bin/mediamtx && \

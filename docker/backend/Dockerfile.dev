@@ -25,14 +25,11 @@ COPY package.json ./
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 
-# Instalar dependencias SIN ejecutar scripts (evita prisma generate prematuro)
-RUN pnpm install --frozen-lockfile --ignore-scripts
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
 
 # Copiar código fuente
 COPY . .
-
-# Ahora ejecutar prisma generate con el schema real
-RUN cd apps/backend && pnpm exec prisma generate
 
 # ============================================
 # STAGE: Development

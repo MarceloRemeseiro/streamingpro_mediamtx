@@ -15,9 +15,9 @@ interface MediaMTXStatus {
 interface MediaMTXPath {
   name: string;
   ready: boolean;
-  tracks: string[]; // Array de strings según el backend
+  tracks: string[];
   bytesReceived: number;
-  readers?: number; // Opcional porque puede no existir
+  readers?: number;
 }
 
 export function MediaMTXStatus() {
@@ -31,27 +31,18 @@ export function MediaMTXStatus() {
     setError(null);
     
     try {
-      const [statusRes, pathsRes] = await Promise.all([
-        fetch(`${config.api.baseUrl}/streams/mediamtx/health`),
-        fetch(`${config.api.baseUrl}/streams/mediamtx/paths`)
-      ]);
-
-      if (!statusRes.ok || !pathsRes.ok) {
-        throw new Error('Error al obtener estado de MediaMTX');
-      }
-
-      const statusData = await statusRes.json();
-      const pathsData = await pathsRes.json();
-
-      // Debug temporal: ver qué datos recibimos
-      console.log('MediaMTX Status Data:', statusData);
-      console.log('MediaMTX Paths Data:', pathsData);
-
-      setStatus(statusData);
-      // Asegurar que paths es un array válido
-      const pathsArray = Array.isArray(pathsData.paths) ? pathsData.paths : [];
-      console.log('Processed paths array:', pathsArray);
-      setPaths(pathsArray);
+      // TODO: Implementar endpoints de estado en el backend
+      // Por ahora, mostrar estado por defecto hasta que el MediaMTXService esté reescrito
+      
+      // Simular estado activo por defecto
+      setStatus({
+        activo: true,
+        mensaje: "MediaMTX corriendo - Endpoints de estado pendientes de implementación"
+      });
+      
+      // Limpiar paths hasta que tengamos los endpoints correctos
+      setPaths([]);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -106,11 +97,12 @@ export function MediaMTXStatus() {
         <div className="space-y-2">
           <h4 className="font-medium text-sm">Streams Activos ({paths.length})</h4>
           {paths.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay streams activos</p>
+            <p className="text-sm text-muted-foreground">
+              {loading ? "Cargando streams..." : "Estado de streams pendiente de implementación"}
+            </p>
           ) : (
             <div className="space-y-1">
               {paths.map((path, index) => {
-                // Validar que path es un objeto válido
                 if (!path || typeof path !== 'object') {
                   return null;
                 }

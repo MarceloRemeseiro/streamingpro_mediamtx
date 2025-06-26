@@ -62,7 +62,6 @@ services:
     volumes:
       # Solo montar el código fuente para hot-reload
       - ./apps/backend/src:/app/apps/backend/src:ro
-      - ./apps/backend/prisma:/app/apps/backend/prisma:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -26,9 +26,7 @@ show_help() {
     echo "  build       - Construir las imágenes de desarrollo"
     echo "  clean       - Limpiar volúmenes y contenedores"
     echo "  shell [srv] - Abrir shell en un servicio (backend, frontend, mediamtx)"
-    echo "  db-migrate  - Ejecutar migraciones de base de datos"
-    echo "  db-reset    - Resetear base de datos"
-    echo "  test        - Ejecutar tests"
+    echo "  test        - Ejecutar tests del backend"
     echo "  status      - Mostrar estado de los servicios"
     echo "  help        - Mostrar esta ayuda"
     echo ""
@@ -141,29 +139,9 @@ open_shell() {
     esac
 }
 
-# Función para migrar base de datos
-migrate_database() {
-    echo -e "${YELLOW}Ejecutando migraciones de base de datos...${NC}"
-    docker-compose -f docker-compose.dev.yml exec backend pnpm run prisma:migrate:dev
-    echo -e "${GREEN}Migraciones ejecutadas.${NC}"
-}
-
-# Función para resetear base de datos
-reset_database() {
-    echo -e "${RED}¿Estás seguro de que quieres resetear la base de datos? (y/N)${NC}"
-    read -r response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        echo -e "${YELLOW}Reseteando base de datos...${NC}"
-        docker-compose -f docker-compose.dev.yml exec backend pnpm run prisma:migrate:reset
-        echo -e "${GREEN}Base de datos reseteada.${NC}"
-    else
-        echo -e "${YELLOW}Operación cancelada.${NC}"
-    fi
-}
-
 # Función para ejecutar tests
 run_tests() {
-    echo -e "${YELLOW}Ejecutando tests...${NC}"
+    echo -e "${YELLOW}Ejecutando tests del backend...${NC}"
     docker-compose -f docker-compose.dev.yml exec backend pnpm run test
 }
 
@@ -196,25 +174,13 @@ case "${1:-help}" in
     shell)
         open_shell "$2"
         ;;
-    db-migrate)
-        migrate_database
-        ;;
-    db-reset)
-        reset_database
-        ;;
     test)
         run_tests
         ;;
     status)
         show_status
         ;;
-    help|--help|-h)
+    help|*)
         show_help
-        ;;
-    *)
-        echo -e "${RED}Comando no reconocido: $1${NC}"
-        echo ""
-        show_help
-        exit 1
         ;;
 esac 

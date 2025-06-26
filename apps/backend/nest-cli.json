@@ -5,9 +5,6 @@
   "compilerOptions": {
     "deleteOutDir": false,
     "webpack": true,
-    "assets": [
-      { "include": "prisma/**", "outDir": "./dist/" }
-    ],
     "watchAssets": true
   }
 }
