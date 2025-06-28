@@ -3,22 +3,26 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
 
-  // Habilitar CORS para permitir peticiones del frontend
+  // Habilitar CORS para permitir peticiones desde el frontend
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://127.0.0.1:3001'], // Orígenes permitidos
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    origin: 'http://localhost:3001', // O la URL de tu frontend
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
-  // Pipe de validación global para DTOs
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Ignorar propiedades no definidas en DTOs
-    forbidNonWhitelisted: true, // Lanzar error si hay propiedades no permitidas
-    transform: true, // Transformar payloads a instancias de DTO
-  }));
+  // Configuración global de ValidationPipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Elimina propiedades que no están en el DTO
+      forbidNonWhitelisted: false, // No lanza error si hay propiedades no esperadas
+      transform: true, // Transforma el payload a una instancia del DTO
+    }),
+  );
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(3000);
 }
 bootstrap();

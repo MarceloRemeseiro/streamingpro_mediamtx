@@ -44,7 +44,7 @@ export function StreamVideoSection({
             />
           </div>
         ) : (
-          <div className="bg-black rounded-lg aspect-video flex items-center justify-center min-h-[200px]">
+          <div className="bg-black rounded-lg aspect-video flex items-center justify-center">
             <div className="text-gray-400 text-center">
               {isActive ? (
                 <div className="space-y-2">

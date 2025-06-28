@@ -1,140 +1,152 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Button } from './ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
+import { Input } from './ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+} from './ui/select';
+import { CrearEntradaDto, ProtocoloStream } from '@/types/streaming';
+import { entradasApi } from '@/lib/api';
+import { toast } from 'react-hot-toast';
+import { Loader2 } from 'lucide-react';
 
-import { ProtocoloStream } from "@/types/streaming";
-import { crearEntradaSchema, type CrearEntradaFormData } from "@/lib/validations";
-import { entradasApi } from "@/lib/api";
+const formSchema = z.object({
+  nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres.'),
+  protocolo: z.nativeEnum(ProtocoloStream),
+});
 
 interface CreateEntradaModalProps {
   onEntradaCreada: () => void;
-  trigger?: React.ReactNode;
+  trigger: React.ReactNode;
 }
 
 export function CreateEntradaModal({ onEntradaCreada, trigger }: CreateEntradaModalProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<CrearEntradaFormData>({
-    resolver: zodResolver(crearEntradaSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      nombre: "",
-      protocolo: ProtocoloStream.RTMP,
-      latenciaSRT: 200,
-      incluirPassphrase: false,
+      nombre: '',
+      protocolo: ProtocoloStream.SRT,
     },
   });
+  
+  const nombre = form.watch('nombre');
 
-  const protocoloSeleccionado = form.watch("protocolo");
+  useEffect(() => {
+    if (nombre.length < 3) {
+      form.clearErrors('nombre');
+      return;
+    }
 
-  const onSubmit = async (data: CrearEntradaFormData) => {
-    try {
-      setIsLoading(true);
-      
-      // Limpiar campos según protocolo
-      const datosLimpios: any = {
-        nombre: data.nombre,
-        protocolo: data.protocolo,
-      };
-
-      // Solo para SRT agregar campos específicos
-      if (data.protocolo === ProtocoloStream.SRT) {
-        if (data.latenciaSRT) {
-          datosLimpios.latenciaSRT = data.latenciaSRT;
+    setIsCheckingName(true);
+    const handler = setTimeout(async () => {
+      try {
+        const { disponible } = await entradasApi.validarNombre(nombre);
+        if (!disponible) {
+          form.setError('nombre', {
+            type: 'manual',
+            message: 'Este nombre ya está en uso.',
+          });
+        } else {
+          form.clearErrors('nombre');
         }
-        if (data.incluirPassphrase) {
-          datosLimpios.incluirPassphrase = data.incluirPassphrase;
-        }
+      } catch (error) {
+        console.error("Error al validar nombre:", error);
+        form.setError('nombre', {
+          type: 'manual',
+          message: 'No se pudo validar el nombre.',
+        });
+      } finally {
+        setIsCheckingName(false);
       }
+    }, 500); // 500ms debounce
 
-      await entradasApi.crear(datosLimpios);
-      
-      // Resetear formulario y cerrar modal
-      form.reset();
-      setOpen(false);
+    return () => {
+      clearTimeout(handler);
+      setIsCheckingName(false);
+    };
+  }, [nombre, form]);
+
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
+    try {
+      const data: CrearEntradaDto = {
+        nombre: values.nombre,
+        protocolo: values.protocolo,
+      };
+      await entradasApi.crear(data);
+      toast.success('Entrada creada exitosamente.');
       onEntradaCreada();
-      
-    } catch (error) {
-      console.error("Error al crear entrada:", error);
-      // TODO: Mostrar notificación de error
+      setOpen(false);
+      form.reset();
+    } catch (error: any) {
+      console.error('Error al crear la entrada:', error);
+      if (error.response?.data?.message) {
+        toast.error(`Error: ${error.response.data.message}`);
+      } else {
+        toast.error('No se pudo crear la entrada.');
+      }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nueva Entrada
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Crear Nueva Entrada de Streaming</DialogTitle>
-          <DialogDescription>
-            Configura una nueva entrada para recibir streams. Los campos se generarán automáticamente.
-          </DialogDescription>
+          <DialogTitle>Crear Nueva Entrada de Stream</DialogTitle>
         </DialogHeader>
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Nombre */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="nombre"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nombre de la Entrada</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="ej: Stream Principal, Conferencia 2025..."
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Un nombre descriptivo para identificar esta entrada.
-                  </FormDescription>
+                  <div className="relative">
+                    <FormControl>
+                      <Input placeholder="Ej: Mi Stream Principal" {...field} />
+                    </FormControl>
+                    {isCheckingName && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Protocolo */}
             <FormField
               control={form.control}
               name="protocolo"
@@ -148,88 +160,23 @@ export function CreateEntradaModal({ onEntradaCreada, trigger }: CreateEntradaMo
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value={ProtocoloStream.RTMP}>
-                        RTMP - Puerto 1935 (Stream Key automática)
-                      </SelectItem>
-                      <SelectItem value={ProtocoloStream.SRT}>
-                        SRT - Puerto 8890 (Stream ID automático)
-                      </SelectItem>
+                      <SelectItem value={ProtocoloStream.SRT}>SRT (Caller)</SelectItem>
+                      <SelectItem value={ProtocoloStream.RTMP}>RTMP (Push)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    {protocoloSeleccionado === ProtocoloStream.RTMP
-                      ? "RTMP usará el puerto 1935 y generará una Stream Key automáticamente."
-                      : "SRT usará el puerto 8890 y generará un Stream ID automáticamente."}
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Campos específicos para SRT */}
-            {protocoloSeleccionado === ProtocoloStream.SRT && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="latenciaSRT"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latencia SRT (ms)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="200"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Latencia del buffer SRT en milisegundos (80-2000ms). Valor por defecto: 200ms.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="incluirPassphrase"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Incluir Passphrase de cifrado
-                        </FormLabel>
-                        <FormDescription>
-                          Si se activa, se generará automáticamente una passphrase para cifrado AES.
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
-
-            {/* Botones */}
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={isLoading}
-              >
-                Cancelar
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="ghost">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" disabled={isSubmitting || isCheckingName || !form.formState.isValid}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear Entrada
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creando..." : "Crear Entrada"}
-              </Button>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

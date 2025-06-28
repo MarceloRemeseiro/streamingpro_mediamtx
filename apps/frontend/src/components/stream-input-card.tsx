@@ -14,9 +14,11 @@ import {
   Settings2,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  GripVertical,
+  Minus
 } from 'lucide-react';
-import { EntradaStream, ProtocoloStream } from '@/types/streaming';
+import { EntradaStream, ProtocoloStream, SalidaStream } from '@/types/streaming';
 import { EditEntradaModal } from './edit-entrada-modal';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
 import { useCollapseState } from '@/lib/hooks';
@@ -24,19 +26,26 @@ import { StreamVideoSection } from './stream-video-section';
 import { StreamConnectionData } from './stream-connection-data';
 import { StreamOutputsSection } from './stream-outputs-section';
 import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
+import { DraggableSyntheticListeners } from '@dnd-kit/core';
 
 interface StreamInputCardProps {
   entrada: EntradaStream;
+  dragListeners: DraggableSyntheticListeners;
+  isDragging: boolean;
   onEliminar: (id: string) => void;
-  onActualizarSalida: (salidaId: string, habilitada: boolean) => void;
+  onActualizarSalida: (salidaId: string, activa: boolean) => void;
   onEntradaActualizada: () => void;
+  onReorderOutputs: (reorderedOutputs: SalidaStream[]) => void;
 }
 
 const StreamInputCard = memo(function StreamInputCard({ 
   entrada, 
+  dragListeners,
+  isDragging,
   onEliminar, 
   onActualizarSalida, 
-  onEntradaActualizada
+  onEntradaActualizada,
+  onReorderOutputs,
 }: StreamInputCardProps) {
   // Estado de collapses persistente en localStorage
   const {
@@ -141,8 +150,20 @@ const StreamInputCard = memo(function StreamInputCard({
   const isActive = entrada.activa; // Usar el estado dinámico de la BD
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="pb-3">
+    <Card className={`w-full max-w-md relative ${isDragging ? 'shadow-lg' : ''}`}>
+      {/* Handle para arrastrar */}
+      <div 
+        {...dragListeners}
+        className="absolute top-0 left-0 right-0 h-7 w-full flex items-center justify-center cursor-grab bg-transparent hover:bg-muted/50 transition-colors rounded-t-lg"
+      >
+        <div className="flex gap-1 text-muted-foreground">
+          <Minus className="h-4 w-4" />
+          <Minus className="h-4 w-4" />
+          <Minus className="h-4 w-4" />
+        </div>
+      </div>
+
+      <CardHeader className=" pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full border-2 ${isActive ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
@@ -152,12 +173,6 @@ const StreamInputCard = memo(function StreamInputCard({
               className="text-xs px-2 py-1"
             >
               {entrada.protocolo}
-            </Badge>
-            <Badge 
-              variant={isActive ? 'default' : 'secondary'}
-              className={`text-xs px-2 py-1 ${isActive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-100 text-gray-600 border-gray-300'}`}
-            >
-              {isActive ? 'ACTIVA' : 'INACTIVA'}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -227,6 +242,7 @@ const StreamInputCard = memo(function StreamInputCard({
           entradaId={entrada.id}
           onActualizarSalida={onActualizarSalida}
           onEntradaActualizada={onEntradaActualizada}
+          onReorderOutputs={onReorderOutputs}
           showCreateButton={true}
           isDefaultOutputs={false}
         />

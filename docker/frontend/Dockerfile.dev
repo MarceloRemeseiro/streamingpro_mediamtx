@@ -1,53 +1,48 @@
+# ====================================================================================
+# STAGE 1: Base
+# Define una imagen base con Node.js y pnpm configurado.
+# ====================================================================================
 FROM node:20-alpine AS base
-
-# Instalar dependencias del sistema
-RUN apk add --no-cache bash curl git
-
-# Configurar pnpm
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-
 WORKDIR /app
+RUN corepack enable
+RUN apk add --no-cache bash
 
-# Crear usuario no-root
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# ============================================
-# STAGE: Installer
-# ============================================
-FROM base AS installer
-
-# Copiar archivos de configuración del workspace
+# ====================================================================================
+# STAGE 2: Dependencias
+# Instala TODAS las dependencias del monorepo.
+# Esta capa se cacheará y solo se reconstruirá si los archivos de lock o package.json cambian.
+# ====================================================================================
+FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY package.json ./
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
-
-# Instalar dependencias SIN ejecutar scripts
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# Copiar código fuente
+# ====================================================================================
+# STAGE 3: Desarrollo
+# Prepara el entorno final de desarrollo.
+# ====================================================================================
+FROM base AS development
+# Crear usuario no-root para seguridad
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copiar las dependencias instaladas y el código fuente desde las capas anteriores
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /root/.local/share/pnpm/store ./.pnpm-store
 COPY . .
 
-# ============================================
-# STAGE: Development
-# ============================================
-FROM base AS development
-
-# Copiar node_modules y código desde installer
-COPY --from=installer --chown=nextjs:nodejs /app .
+# Asignar permisos al usuario no-root para que pueda escribir en .next
+# El chown se hace aquí, donde tenemos permisos de root.
+RUN chown -R nextjs:nodejs .
+RUN chown -R nextjs:nodejs /app/apps/frontend/.next || true
 
 # Cambiar al usuario no-root
 USER nextjs
 
-# Configurar variables de entorno para desarrollo
-ENV NODE_ENV=development
-ENV NEXT_TELEMETRY_DISABLED=1
+# Exponer el puerto del frontend
+EXPOSE 3001
 
-# Exponer puerto
-EXPOSE 3000
-
-# Comando para desarrollo
+# Comando por defecto para iniciar el servidor de desarrollo
 CMD ["pnpm", "--filter", "frontend", "run", "dev"] 
