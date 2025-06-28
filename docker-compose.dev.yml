@@ -59,6 +59,8 @@ services:
       - MEDIAMTX_API_USER=admin
       - MEDIAMTX_API_PASS=admin123
       - MEDIAMTX_HLS_PORT=8888
+      - RTSP_PORT=8554
+      - RTMP_PORT=1935
     volumes:
       # Solo montar el código fuente para hot-reload
       - ./apps/backend/src:/app/apps/backend/src:ro
@@ -86,8 +88,8 @@ services:
       # Montar todo el proyecto para hot-reload, excluyendo node_modules
       - .:/app
       - /app/node_modules
-      # Volumen para el directorio de compilación de Next.js (aislado para evitar conflictos)
-      - /app/apps/frontend/.next
+      # Volumen para el directorio de compilación de Next.js (host -> container)
+      - ./apps/frontend/.next:/app/apps/frontend/.next
     networks:
       - streamingpro-network
     # Comando para desarrollo con hot-reload usando pnpm filter

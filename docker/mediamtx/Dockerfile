@@ -17,9 +17,6 @@ RUN wget https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VER
     rm mediamtx_${MEDIAMTX_VERSION}_linux_amd64.tar.gz && \
     chmod +x /usr/local/bin/mediamtx
 
-# Copiar nuestra configuración personalizada (desde el contexto de construcción)
-COPY mediamtx.yml /mediamtx.yml
-
 # Crear usuario no-root
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser

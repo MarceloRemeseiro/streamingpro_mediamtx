@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -29,7 +29,7 @@ interface StreamOutputsSectionProps {
   isDefaultOutputs?: boolean;
 }
 
-export function StreamOutputsSection({ 
+const StreamOutputsSection = memo(function StreamOutputsSection({ 
   isExpanded, 
   onToggle, 
   outputs, 
@@ -123,4 +123,14 @@ export function StreamOutputsSection({
       </CollapsibleContent>
     </Collapsible>
   );
-} 
+}, (prevProps, nextProps) => {
+  // Solo re-renderizar si hay cambios en las salidas o estado de expansión
+  return (
+    prevProps.isExpanded === nextProps.isExpanded &&
+    prevProps.outputs.length === nextProps.outputs.length &&
+    JSON.stringify(prevProps.outputs.map(o => ({ id: o.id, habilitada: o.habilitada, nombre: o.nombre }))) ===
+    JSON.stringify(nextProps.outputs.map(o => ({ id: o.id, habilitada: o.habilitada, nombre: o.nombre })))
+  );
+});
+
+export { StreamOutputsSection }; 

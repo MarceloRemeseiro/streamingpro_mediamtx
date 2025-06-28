@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { memo } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -32,7 +32,7 @@ interface StreamInputCardProps {
   onEntradaActualizada: () => void;
 }
 
-export function StreamInputCard({ 
+const StreamInputCard = memo(function StreamInputCard({ 
   entrada, 
   onEliminar, 
   onActualizarSalida, 
@@ -138,7 +138,7 @@ export function StreamInputCard({
   };
 
   const hlsUrl = obtenerUrlHLS();
-  const isActive = !!hlsUrl;
+  const isActive = entrada.activa; // Usar el estado dinámico de la BD
 
   return (
     <Card className="w-full max-w-md">
@@ -146,12 +146,18 @@ export function StreamInputCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full border-2 ${isActive ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
-                          <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
-                          <Badge 
-                variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}
-                className="text-xs px-2 py-1"
-              >
+            <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
+            <Badge 
+              variant={entrada.protocolo === ProtocoloStream.RTMP ? 'default' : 'secondary'}
+              className="text-xs px-2 py-1"
+            >
               {entrada.protocolo}
+            </Badge>
+            <Badge 
+              variant={isActive ? 'default' : 'secondary'}
+              className={`text-xs px-2 py-1 ${isActive ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-100 text-gray-600 border-gray-300'}`}
+            >
+              {isActive ? 'ACTIVA' : 'INACTIVA'}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -227,4 +233,15 @@ export function StreamInputCard({
       </CardContent>
     </Card>
   );
-} 
+}, (prevProps, nextProps) => {
+  // Solo re-renderizar si la entrada o su estado activo cambió
+  return (
+    prevProps.entrada.id === nextProps.entrada.id &&
+    prevProps.entrada.activa === nextProps.entrada.activa &&
+    prevProps.entrada.salidas.length === nextProps.entrada.salidas.length &&
+    JSON.stringify(prevProps.entrada.salidas.map(s => ({ id: s.id, habilitada: s.habilitada }))) ===
+    JSON.stringify(nextProps.entrada.salidas.map(s => ({ id: s.id, habilitada: s.habilitada })))
+  );
+});
+
+export { StreamInputCard }; 

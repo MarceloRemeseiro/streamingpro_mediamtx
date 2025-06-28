@@ -1,7 +1,7 @@
 FROM node:20-alpine AS base
 
 # Instalar dependencias del sistema necesarias
-RUN apk add --no-cache bash curl git openssl
+RUN apk add --no-cache bash curl git openssl ffmpeg
 
 # Configurar pnpm
 ENV PNPM_HOME="/pnpm"
@@ -50,4 +50,12 @@ USER nestjs
 EXPOSE 3000
 
 # Comando para desarrollo
-CMD ["/app/start-dev.sh"] 
+CMD ["/app/start-dev.sh"]
+
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y ffmpeg
+
+WORKDIR /app
+
+# ... existing code ... 

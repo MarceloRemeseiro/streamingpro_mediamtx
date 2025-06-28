@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -9,20 +9,36 @@ import { CreateEntradaModal } from '@/components/create-entrada-modal';
 import { MediaMTXStatus } from '@/components/mediamtx-status';
 import { EntradaStream } from '@/types/streaming';
 import { entradasApi, salidasApi } from '@/lib/api';
+import { useSocket } from '@/components/socket-provider';
+
+// Tipos para WebSocket events
+interface EstadoConexionEvent {
+  entradaId: string;
+  activa: boolean;
+  pathInfo?: any;
+  timestamp: string;
+}
+
+interface CambioOutputEvent {
+  entradaId: string;
+  outputId: string;
+  accion: 'creado' | 'actualizado' | 'eliminado';
+  timestamp: string;
+}
 
 export default function Home() {
   const [entradas, setEntradas] = useState<EntradaStream[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Cargar entradas al montar el componente
-  useEffect(() => {
-    cargarEntradas();
-  }, []);
+  // WebSocket para actualizaciones en tiempo real
+  const socket = useSocket();
 
-  const cargarEntradas = async () => {
+  // Cargar entradas iniciales
+  const cargarEntradas = useCallback(async () => {
     try {
-      setLoading(true);
+      // setLoading(true); // Evitar loader en recargas para que no parpadee
       const data = await entradasApi.obtenerTodas();
       setEntradas(data);
       setError(null);
@@ -32,40 +48,117 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Manejador de cambios en outputs con debounce
+  const handleCambioOutput = useCallback(async (event: CambioOutputEvent) => {
+    console.log('🔄 Cambio en output via WebSocket:', event);
+    
+    try {
+      // En lugar de recargar todo, solo actualizar la entrada específica
+      const entradaActualizada = await entradasApi.obtenerPorId(event.entradaId);
+      
+      setEntradas(prev => {
+        const entradaExistente = prev.find(e => e.id === event.entradaId);
+        if (!entradaExistente) {
+          // Si la entrada no existe (caso raro), agregarla
+          return [...prev, entradaActualizada];
+        }
+
+        // Comparar si hay cambios reales para evitar re-render
+        if (JSON.stringify(entradaExistente.salidas) === JSON.stringify(entradaActualizada.salidas)) {
+          console.log('🔄 Sin cambios reales en salidas, evitando re-render');
+          return prev;
+        }
+        
+        return prev.map(entrada => 
+          entrada.id === event.entradaId 
+            ? entradaActualizada
+            : entrada
+        );
+      });
+      
+      console.log(`✅ Entrada ${event.entradaId} actualizada localmente`);
+    } catch (error) {
+      console.error('Error actualizando entrada específica:', error);
+      // Si falla la actualización específica, recargar todo como fallback
+      cargarEntradas();
+    }
+  }, [cargarEntradas]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Manejador de conexión
+    socket.on('connect', () => {
+      console.log('🔗 WebSocket conectado en Home');
+      setIsConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('🔌 WebSocket desconectado en Home');
+      setIsConnected(false);
+    });
+
+    // Manejador de estado de conexión de streams
+    const handleEstadoConexion = (event: EstadoConexionEvent) => {
+      console.log('🔄 Estado de conexión actualizado via WebSocket:', event);
+      setEntradas(prev => 
+        prev.map(entrada => 
+          entrada.id === event.entradaId 
+            ? { ...entrada, activa: event.activa }
+            : entrada
+        )
+      );
+    };
+
+    socket.on('estado-conexion', handleEstadoConexion);
+    socket.on('cambio-output', handleCambioOutput);
+
+    // Limpieza de listeners
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('estado-conexion', handleEstadoConexion);
+      socket.off('cambio-output', handleCambioOutput);
+    };
+
+  }, [socket, handleCambioOutput]);
+
+  useEffect(() => {
+    cargarEntradas();
+  }, [cargarEntradas]);
+
+  // Debug: Mostrar cambios en las entradas
+  useEffect(() => {
+    console.log('📊 Entradas actualizadas:', entradas.map(e => ({ 
+      id: e.id, 
+      nombre: e.nombre, 
+      activa: e.activa 
+    })));
+  }, [entradas]);
 
   const manejarEliminarEntrada = async (id: string) => {
     try {
       await entradasApi.eliminar(id);
+      // La actualización de estado vendrá por WebSocket si todo va bien,
+      // pero por si acaso, actualizamos localmente.
       setEntradas(prev => prev.filter(entrada => entrada.id !== id));
     } catch (error) {
       console.error('Error al eliminar entrada:', error);
-      // TODO: Mostrar notificación de error
     }
   };
 
   const manejarActualizarSalida = async (salidaId: string, habilitada: boolean) => {
     try {
       await salidasApi.actualizar(salidaId, { habilitada });
-      // Actualizar el estado local
-      setEntradas(prev => 
-        prev.map(entrada => ({
-          ...entrada,
-          salidas: entrada.salidas.map(salida => 
-            salida.id === salidaId ? { ...salida, habilitada } : salida
-          )
-        }))
-      );
+      // El cambio se reflejará via 'cambio-output' y recarga de entradas.
     } catch (error) {
       console.error('Error al actualizar salida:', error);
-      // TODO: Mostrar notificación de error
     }
   };
 
-
-
   const manejarCrearEntrada = () => {
-    // Recargar entradas después de crear una nueva
     cargarEntradas();
   };
 
@@ -96,18 +189,25 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                StreamingPro Restreamer
+              <h1 className="text-2xl font-bold tracking-tight">
+                StreamingPro
               </h1>
               <p className="text-sm text-muted-foreground">
-                Plataforma de distribución de streaming SRT/RTMP
+                Plataforma de distribución de vídeo SRT/RTMP
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Indicador de conexión WebSocket */}
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm text-muted-foreground">
+                  {isConnected ? 'Conectado' : 'Desconectado'}
+                </span>
+              </div>
               <CreateEntradaModal 
                 onEntradaCreada={manejarCrearEntrada}
                 trigger={
