@@ -30,7 +30,7 @@ export function StreamConnectionData({
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between p-2 h-auto">
+        <Button variant="ghost" className="w-full justify-between p-2 h-10">
           <div className="flex items-center gap-3">
             <Settings className="h-4 w-4" />
             <span className="font-medium text-sm">Datos de Conexión</span>

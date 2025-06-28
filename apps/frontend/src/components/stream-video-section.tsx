@@ -26,7 +26,7 @@ export function StreamVideoSection({
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between p-2 h-auto">
+        <Button variant="ghost" className="w-full justify-between p-2 h-10">
           <div className="flex items-center gap-3">
                           <Play className="h-4 w-4" />
               <span className="font-medium text-sm">Video</span>
@@ -34,7 +34,7 @@ export function StreamVideoSection({
             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 px-2">
+      <CollapsibleContent className="space-y-2 px-2 pt-2">
         {hlsUrl && isActive ? (
           <div className="rounded-lg overflow-hidden">
             <HLSPlayer 

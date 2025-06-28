@@ -33,6 +33,7 @@ interface StreamInputCardProps {
   dragListeners: DraggableSyntheticListeners;
   isDragging: boolean;
   onEliminar: (id: string) => void;
+  onEliminarSalida: (id: string) => void;
   onActualizarSalida: (salidaId: string, activa: boolean) => void;
   onEntradaActualizada: () => void;
   onReorderOutputs: (reorderedOutputs: SalidaStream[]) => void;
@@ -43,6 +44,7 @@ const StreamInputCard = memo(function StreamInputCard({
   dragListeners,
   isDragging,
   onEliminar, 
+  onEliminarSalida,
   onActualizarSalida, 
   onEntradaActualizada,
   onReorderOutputs,
@@ -150,7 +152,7 @@ const StreamInputCard = memo(function StreamInputCard({
   const isActive = entrada.activa; // Usar el estado dinámico de la BD
 
   return (
-    <Card className={`w-full max-w-md relative ${isDragging ? 'shadow-lg' : ''}`}>
+    <Card className={`w-full max-w-md relative py-6 ${isDragging ? 'shadow-lg' : ''}`}>
       {/* Handle para arrastrar */}
       <div 
         {...dragListeners}
@@ -163,8 +165,8 @@ const StreamInputCard = memo(function StreamInputCard({
         </div>
       </div>
 
-      <CardHeader className=" pb-3">
-        <div className="flex items-center justify-between">
+      <CardHeader>
+        <div className="flex items-center justify-between pb-3">
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full border-2 ${isActive ? 'bg-green-500 border-green-400 shadow-green-500/50 shadow-lg' : 'bg-gray-400 border-gray-300'}`} />
             <CardTitle className="text-lg">{entrada.nombre}</CardTitle>
@@ -241,6 +243,7 @@ const StreamInputCard = memo(function StreamInputCard({
           icon={<Settings2 className="h-4 w-4" />}
           entradaId={entrada.id}
           onActualizarSalida={onActualizarSalida}
+          onDeleteOutput={onEliminarSalida}
           onEntradaActualizada={onEntradaActualizada}
           onReorderOutputs={onReorderOutputs}
           showCreateButton={true}

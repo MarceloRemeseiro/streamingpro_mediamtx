@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DraggableSyntheticListeners,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -36,6 +37,7 @@ import { CreateSalidaModal } from './create-salida-modal';
 import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
 import { SortableGrid } from './sortable-grid';
 import { Switch } from '@/components/ui/switch';
+import { CustomOutputCard } from './custom-output-card';
 
 interface StreamOutputsSectionProps {
   isExpanded: boolean;
@@ -57,63 +59,40 @@ interface SortableOutputItemProps {
   salida: SalidaStream;
   onUpdate: () => void;
   onToggle: (id: string, activa: boolean) => void;
+  onDelete: (id: string) => void;
+  listeners: DraggableSyntheticListeners;
 }
 
 function SortableOutputItem({
   salida,
   onUpdate,
   onToggle,
+  onDelete,
+  listeners
 }: SortableOutputItemProps) {
   const {
     attributes,
-    listeners,
     setNodeRef,
     transform,
     transition,
+    isDragging,
   } = useSortable({ id: salida.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center justify-between p-2 pl-0 bg-muted rounded-lg touch-none"
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div {...attributes} {...listeners} className="cursor-grab p-2">
-          <GripVertical className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <Badge variant="secondary" className="text-xs px-2 py-1 shrink-0">
-          {salida.protocolo}
-        </Badge>
-        <div className="min-w-0 flex-1">
-          <span className="text-sm font-medium block truncate">{salida.nombre}</span>
-          {salida.urlDestino && (
-            <span className="text-xs text-muted-foreground block truncate">
-              {salida.urlDestino}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <OutputSwitchConfirm
-          isEnabled={salida.habilitada}
-          outputName={salida.nombre}
-          onConfirm={(enabled) => onToggle(salida.id, enabled)}
-        />
-        <EditSalidaModal
-          salida={salida}
-          onSalidaActualizada={onUpdate}
-        />
-        <DeleteSalidaConfirm
-          salida={salida}
-          onSalidaEliminada={onUpdate}
-        />
-      </div>
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <CustomOutputCard 
+        salida={salida}
+        listeners={listeners}
+        onUpdate={onUpdate}
+        onToggle={onToggle}
+        onDelete={onDelete}
+      />
     </div>
   );
 }
@@ -212,7 +191,7 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between p-2 h-auto">
+        <Button variant="ghost" className="w-full justify-between p-2 h-10">
           <div className="flex items-center gap-3">
             {icon}
             <span className="font-medium text-sm">{title}</span>
@@ -223,7 +202,7 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 px-2">
+      <CollapsibleContent className="space-y-2 px-2 pt-2">
         {!isDefaultOutputs && onReorderOutputs ? (
           <DndContext
             sensors={sensors}
@@ -237,12 +216,14 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
                   onReorder={onReorderOutputs}
                   className="flex flex-col gap-2"
                 >
-                  {(salida) => (
+                  {(salida, listeners) => (
                     <SortableOutputItem
                       key={salida.id}
                       salida={salida}
                       onToggle={onActualizarSalida}
                       onUpdate={onEntradaActualizada}
+                      onDelete={onDeleteOutput!}
+                      listeners={listeners}
                     />
                   )}
                 </SortableGrid>

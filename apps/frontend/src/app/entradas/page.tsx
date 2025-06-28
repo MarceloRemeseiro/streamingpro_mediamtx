@@ -20,6 +20,26 @@ export default function EntradasPage() {
   const fetchEntradas = useCallback(async () => {
     try {
       const data = await entradasApi.obtenerTodas();
+      
+      // 🔍 LOG TEMPORAL PARA DEBUG
+      console.log('🔍 fetchEntradas - Datos recibidos de la API:', data);
+      data.forEach((entrada, index) => {
+        console.log(`🔍 Entrada ${index + 1} (${entrada.nombre}):`, {
+          id: entrada.id,
+          protocolo: entrada.protocolo,
+          streamKey: entrada.streamKey,
+          streamId: entrada.streamId,
+          salidas: entrada.salidas?.map(s => ({
+            id: s.id,
+            nombre: s.nombre,
+            protocolo: s.protocolo,
+            streamKey: s.streamKey,
+            streamId: s.streamId,
+            urlDestino: s.urlDestino
+          }))
+        });
+      });
+      
       setEntradas(data);
       setError(null);
     } catch (err) {
@@ -75,6 +95,23 @@ export default function EntradasPage() {
     } catch (err) {
       console.error('Error eliminando la entrada:', err);
       toast.error('No se pudo eliminar la entrada.');
+    }
+  };
+
+  const handleEliminarSalida = async (salidaId: string) => {
+    try {
+      await salidasApi.eliminar(salidaId);
+      toast.success('Salida eliminada correctamente.');
+      // Actualizar el estado local para reflejar la eliminación
+      setEntradas(prevEntradas => 
+        prevEntradas.map(entrada => ({
+          ...entrada,
+          salidas: entrada.salidas.filter(s => s.id !== salidaId)
+        }))
+      );
+    } catch (err) {
+      console.error('Error eliminando la salida:', err);
+      toast.error('No se pudo eliminar la salida.');
     }
   };
 
@@ -155,6 +192,7 @@ export default function EntradasPage() {
               dragListeners={listeners}
               isDragging={isDragging}
               onEliminar={handleEliminarEntrada}
+              onEliminarSalida={handleEliminarSalida}
               onActualizarSalida={handleActualizarSalida}
               onEntradaActualizada={fetchEntradas}
               onReorderOutputs={(reordered) => handleReorderOutputs(entrada.id, reordered)}
