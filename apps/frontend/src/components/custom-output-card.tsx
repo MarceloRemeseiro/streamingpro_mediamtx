@@ -17,6 +17,9 @@ import { DraggableSyntheticListeners } from '@dnd-kit/core';
 import { SalidaStream, ProtocoloSalida } from '@/types/streaming';
 import { GripVertical, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
+import { useOutputStatus } from '@/lib/use-output-status';
+import { esOutputPersonalizado } from '@/lib/utils';
+import { OutputStatusIndicator } from './output-status-indicator';
 import { OutputSwitchConfirm } from './output-switch-confirm';
 import { EditSalidaModal } from './edit-salida-modal';
 import { DeleteSalidaConfirm } from './delete-salida-confirm';
@@ -50,6 +53,16 @@ export function CustomOutputCard({
 }: CustomOutputCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { copyToClipboard } = useCopyToClipboard();
+  
+  // Verificar si es output personalizado
+  const esPersonalizado = esOutputPersonalizado(salida);
+  
+  // Hook para manejar el estado del output (solo para personalizados)
+  const { estado } = useOutputStatus({
+    outputId: salida.id,
+    initialEstado: salida.estado,
+    enabled: esPersonalizado, // Solo habilitar para outputs personalizados
+  });
 
   // 🔍 LOG TEMPORAL PARA DEBUG
   console.log('🔍 CustomOutputCard - Datos de salida:', {
@@ -78,6 +91,9 @@ export function CustomOutputCard({
           <span className="font-medium text-sm ml-2 flex-1 truncate">{salida.nombre}</span>
 
           <div className="flex items-center gap-0.5 shrink-0 ml-2">
+            {/* Indicador de estado para outputs personalizados */}
+            <OutputStatusIndicator estado={estado || salida.estado} className="mr-1" />
+            
             <OutputSwitchConfirm
               isEnabled={salida.habilitada}
               outputName={salida.nombre}

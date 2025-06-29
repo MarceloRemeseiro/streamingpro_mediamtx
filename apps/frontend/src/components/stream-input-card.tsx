@@ -69,6 +69,19 @@ const StreamInputCard = memo(function StreamInputCard({
     !['SRT Pull', 'RTMP Pull', 'HLS'].includes(salida.nombre)
   );
 
+  // Función para ordenar outputs por defecto en orden fijo: SRT Pull, RTMP Pull, HLS
+  const ordenarOutputsPorDefecto = (outputs: SalidaStream[]) => {
+    const ordenDeseado = ['SRT Pull', 'RTMP Pull', 'HLS'];
+    return outputs.sort((a, b) => {
+      const indexA = ordenDeseado.indexOf(a.nombre);
+      const indexB = ordenDeseado.indexOf(b.nombre);
+      return indexA - indexB;
+    });
+  };
+
+  // Aplicar orden fijo a los outputs por defecto
+  const salidasPorDefectoOrdenadas = ordenarOutputsPorDefecto([...salidasPorDefecto]);
+
   const { copyToClipboard } = useCopyToClipboard();
 
   const copiarAlPortapapeles = (texto: string, label?: string) => {
@@ -223,7 +236,7 @@ const StreamInputCard = memo(function StreamInputCard({
         <StreamOutputsSection
           isExpanded={outputsExpanded}
           onToggle={setOutputsExpanded}
-          outputs={salidasPorDefecto}
+          outputs={salidasPorDefectoOrdenadas}
           title="Outputs por Defecto"
           icon={<Radio className="h-4 w-4" />}
           entradaId={entrada.id}

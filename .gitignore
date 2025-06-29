@@ -121,7 +121,9 @@ dist/
 *.mp4
 *.avi
 *.mkv
-*.ts
+# Solo ignorar archivos TS de streaming (segmentos), no archivos TypeScript
+segment*.ts
+chunk*.ts
 *.m3u8
 *.m4s
 
