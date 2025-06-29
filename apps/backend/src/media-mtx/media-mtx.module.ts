@@ -16,8 +16,8 @@ import { StreamIntegrationService } from './services/integration/stream-integrat
 // Controladores
 import { MediaMTXController } from './controllers/media-mtx.controller';
 
-// Importar EstadoModule para WebSocket
-import { EstadoModule } from '../estado/estado.module';
+// Importar EstadoNuevoModule para WebSocket
+import { EstadoNuevoModule } from '../estado/estado-nuevo.module';
 
 /**
  * Módulo MediaMTX - Arquitectura limpia y modular
@@ -50,7 +50,7 @@ import { EstadoModule } from '../estado/estado.module';
       },
       inject: [ConfigService],
     }),
-    forwardRef(() => EstadoModule), // Para romper dependencia circular
+    forwardRef(() => EstadoNuevoModule), // Usar forwardRef para evitar dependencia circular
   ],
   controllers: [MediaMTXController],
   providers: [
@@ -74,8 +74,7 @@ export class MediaMtxModule implements OnModuleInit {
   constructor(private readonly streamSync: StreamSyncService) {}
 
   async onModuleInit() {
-    // Iniciar sincronización automática cuando el módulo esté listo
-    // Sincronizar cada 5 segundos para detectar cambios en tiempo real
-    this.streamSync.startAutoSync(5000);
+    // Sincronización ahora se maneja desde EstadoService para evitar duplicación
+    // this.streamSync.startAutoSync(5000);
   }
 } 

@@ -10,6 +10,9 @@ import {
   MediaMTXSRTConnectionInfo,
   MediaMTXRTMPConnectionInfo,
   MediaMTXRTSPConnectionInfo,
+  MediaMTXPathListResponse,
+  MediaMTXPathStatus,
+  MediaMTXOutputVerification,
   StreamingUrls,
 } from '../../interfaces/mediamtx-api.interface';
 
@@ -139,6 +142,158 @@ export class MediaMTXApiService implements OnModuleInit {
       }
       this.logger.error(`❌ Error obteniendo path '${name}':`, this.formatError(error));
       throw new Error(`Error obteniendo path MediaMTX: ${this.formatError(error)}`);
+    }
+  }
+
+  // =============================================================================
+  // VERIFICACIÓN DE ESTADO DE OUTPUTS (NUEVO)
+  // =============================================================================
+
+  /**
+   * Verifica el estado real de un path específico en MediaMTX
+   * Esto nos permite detectar si realmente está funcionando el streaming
+   */
+  async verifyPathStatus(pathName: string): Promise<MediaMTXPathStatus> {
+    this.logger.debug(`🔍 Verificando estado del path: ${pathName}`);
+    
+    try {
+      const pathInfo = await this.getPath(pathName);
+      
+      if (!pathInfo) {
+        return {
+          pathName,
+          exists: false,
+          ready: false,
+          hasReaders: false,
+          bytesReceived: 0,
+          bytesSent: 0,
+          tracks: [],
+          source: '',
+        };
+      }
+
+      return {
+        pathName,
+        exists: true,
+        ready: pathInfo.ready,
+        hasReaders: pathInfo.readers && pathInfo.readers.length > 0,
+        bytesReceived: pathInfo.bytesReceived || 0,
+        bytesSent: pathInfo.bytesSent || 0,
+        readyTime: pathInfo.readyTime,
+        tracks: pathInfo.tracks || [],
+        source: pathInfo.source || '',
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error verificando estado del path '${pathName}':`, this.formatError(error));
+      return {
+        pathName,
+        exists: false,
+        ready: false,
+        hasReaders: false,
+        bytesReceived: 0,
+        bytesSent: 0,
+        tracks: [],
+        source: '',
+      };
+    }
+  }
+
+  /**
+   * Verifica si un output está realmente funcionando
+   * Combina múltiples factores para determinar el estado real
+   */
+  async verifyOutputStatus(pathName: string): Promise<MediaMTXOutputVerification> {
+    this.logger.debug(`🔍 Verificando output: ${pathName}`);
+    
+    try {
+      const pathStatus = await this.verifyPathStatus(pathName);
+      
+      // Un output está funcionando si:
+      // 1. El path existe en MediaMTX
+      // 2. Está en estado "ready" 
+      // 3. Tiene bytes enviados (indica tráfico saliente)
+      const isActive = pathStatus.exists && pathStatus.ready;
+      const isStreaming = isActive && pathStatus.bytesSent > 0;
+      const hasTraffic = pathStatus.bytesSent > 0;
+
+      let errorMessage: string | undefined;
+      if (!pathStatus.exists) {
+        errorMessage = 'Path no existe en MediaMTX';
+      } else if (!pathStatus.ready) {
+        errorMessage = 'Path no está ready en MediaMTX';
+      } else if (!hasTraffic) {
+        errorMessage = 'No hay tráfico de datos saliente';
+      }
+
+      return {
+        pathName,
+        isActive,
+        isStreaming,
+        hasTraffic,
+        errorMessage,
+        lastCheck: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error verificando output '${pathName}':`, this.formatError(error));
+      return {
+        pathName,
+        isActive: false,
+        isStreaming: false,
+        hasTraffic: false,
+        errorMessage: `Error de conexión: ${this.formatError(error)}`,
+        lastCheck: new Date(),
+      };
+    }
+  }
+
+  /**
+   * Verifica múltiples outputs de una vez
+   * Útil para el monitoreo masivo
+   */
+  async verifyMultipleOutputs(pathNames: string[]): Promise<MediaMTXOutputVerification[]> {
+    this.logger.debug(`🔍 Verificando ${pathNames.length} outputs en paralelo`);
+    
+    const verifications = await Promise.all(
+      pathNames.map(pathName => this.verifyOutputStatus(pathName))
+    );
+
+    const activeCount = verifications.filter(v => v.isActive).length;
+    const streamingCount = verifications.filter(v => v.isStreaming).length;
+    
+    this.logger.debug(`📊 Resultados: ${activeCount}/${pathNames.length} activos, ${streamingCount}/${pathNames.length} streaming`);
+    
+    return verifications;
+  }
+
+  /**
+   * Obtiene estadísticas resumidas de todos los paths activos
+   */
+  async getPathsStatistics(): Promise<{
+    totalPaths: number;
+    readyPaths: number;
+    pathsWithReaders: number;
+    totalBytesReceived: number;
+    totalBytesSent: number;
+  }> {
+    try {
+      const paths = await this.listPaths();
+      
+      return {
+        totalPaths: paths.length,
+        readyPaths: paths.filter(p => p.ready).length,
+        pathsWithReaders: paths.filter(p => p.readers && p.readers.length > 0).length,
+        totalBytesReceived: paths.reduce((sum, p) => sum + (p.bytesReceived || 0), 0),
+        totalBytesSent: paths.reduce((sum, p) => sum + (p.bytesSent || 0), 0),
+      };
+    } catch (error) {
+      this.logger.error('❌ Error obteniendo estadísticas de paths:', this.formatError(error));
+      return {
+        totalPaths: 0,
+        readyPaths: 0,
+        pathsWithReaders: 0,
+        totalBytesReceived: 0,
+        totalBytesSent: 0,
+      };
     }
   }
 

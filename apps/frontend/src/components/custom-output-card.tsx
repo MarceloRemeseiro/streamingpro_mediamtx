@@ -92,7 +92,12 @@ export function CustomOutputCard({
 
           <div className="flex items-center gap-0.5 shrink-0 ml-2">
             {/* Indicador de estado para outputs personalizados */}
-            <OutputStatusIndicator estado={estado || salida.estado} className="mr-1" />
+            <OutputStatusIndicator 
+              estado={estado || salida.estado} 
+              esOutputPersonalizado={esPersonalizado}
+              habilitada={salida.habilitada}
+              className="mr-1" 
+            />
             
             <OutputSwitchConfirm
               isEnabled={salida.habilitada}

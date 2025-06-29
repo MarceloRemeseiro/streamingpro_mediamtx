@@ -104,6 +104,32 @@ export interface MediaMTXRTSPConnectionInfo extends MediaMTXConnectionInfo {
   // RTSP específico se puede extender aquí
 }
 
+// Nuevas interfaces para verificación de estado
+export interface MediaMTXPathListResponse {
+  items: MediaMTXPathInfo[];
+}
+
+export interface MediaMTXPathStatus {
+  pathName: string;
+  exists: boolean;
+  ready: boolean;
+  hasReaders: boolean;
+  bytesReceived: number;
+  bytesSent: number;
+  readyTime?: string;
+  tracks: string[];
+  source: string;
+}
+
+export interface MediaMTXOutputVerification {
+  pathName: string;
+  isActive: boolean;
+  isStreaming: boolean;
+  hasTraffic: boolean;
+  errorMessage?: string;
+  lastCheck: Date;
+}
+
 export interface StreamingUrls {
   rtmp: {
     publish: string;

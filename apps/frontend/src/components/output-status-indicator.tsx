@@ -7,13 +7,18 @@ import { cn } from '@/lib/utils';
 interface OutputStatusIndicatorProps {
   estado?: EstadoOutput;
   className?: string;
+  esOutputPersonalizado?: boolean;
+  habilitada?: boolean;
 }
 
-export function OutputStatusIndicator({ estado, className }: OutputStatusIndicatorProps) {
-  // Si no hay estado, no mostrar nada (outputs por defecto)
-  if (!estado) {
+export function OutputStatusIndicator({ estado, className, esOutputPersonalizado, habilitada }: OutputStatusIndicatorProps) {
+  // Si no es output personalizado, no mostrar LED
+  if (!esOutputPersonalizado) {
     return null;
   }
+
+  // Para outputs personalizados sin estado, inferir el estado basándose en si está habilitado
+  const estadoFinal = estado || (habilitada ? EstadoOutput.CONECTANDO : EstadoOutput.APAGADO);
 
   const getStatusConfig = (estado: EstadoOutput) => {
     switch (estado) {
@@ -50,7 +55,7 @@ export function OutputStatusIndicator({ estado, className }: OutputStatusIndicat
     }
   };
 
-  const config = getStatusConfig(estado);
+  const config = getStatusConfig(estadoFinal);
 
   return (
     <div className={cn("flex items-center gap-1.5", className)}>

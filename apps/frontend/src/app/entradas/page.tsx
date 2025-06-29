@@ -65,11 +65,15 @@ export default function EntradasPage() {
       socket.on('stream-update', handleUpdate);
       socket.on('output-update', handleUpdate);
       socket.on('entrada-update', handleUpdate);
+      socket.on('estado-actualizado', handleUpdate);
+      socket.on('output-status-change', handleUpdate);
 
       return () => {
         socket.off('stream-update', handleUpdate);
         socket.off('output-update', handleUpdate);
         socket.off('entrada-update', handleUpdate);
+        socket.off('estado-actualizado', handleUpdate);
+        socket.off('output-status-change', handleUpdate);
       };
     }
   }, [socket, fetchEntradas]);

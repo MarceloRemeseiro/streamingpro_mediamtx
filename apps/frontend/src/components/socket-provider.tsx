@@ -39,15 +39,29 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
     // Eventos de estado que emite el backend
     newSocket.on('stream-update', (data) => {
-      console.log('📡 Evento stream-update recibido:', data);
+      console.log('📡 SocketProvider - Evento stream-update recibido:', data);
     });
 
     newSocket.on('entrada-update', (data) => {
-      console.log('📡 Evento entrada-update recibido:', data);
+      console.log('📡 SocketProvider - Evento entrada-update recibido:', data);
     });
 
     newSocket.on('output-update', (data) => {
-      console.log('📡 Evento output-update recibido:', data);
+      console.log('📡 SocketProvider - Evento output-update recibido:', data);
+    });
+
+    newSocket.on('output-status-change', (data) => {
+      console.log('📡 SocketProvider - Evento output-status-change recibido:', {
+        outputId: data.outputId,
+        entradaId: data.entradaId,
+        estado: data.estado,
+        timestamp: data.timestamp,
+        data: data
+      });
+    });
+
+    newSocket.on('estado-actualizado', (data) => {
+      console.log('📡 SocketProvider - Evento estado-actualizado recibido:', data);
     });
 
     setSocket(newSocket);

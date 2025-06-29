@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { EntradaStream } from '../../../entrada/entities/entrada.entity';
 import { MediaMTXApiService } from '../core/mediamtx-api.service';
 import { IStreamSyncService } from '../../interfaces/stream-integration.interface';
-import { EstadoService } from '../../../estado/estado.service';
+import { EstadoEntradasService } from '../../../estado/services/estado-entradas.service';
 import { PathManagerService } from '../core/path-manager.service';
 
 /**
@@ -19,7 +19,7 @@ export class StreamSyncService implements IStreamSyncService {
     @InjectRepository(EntradaStream)
     private readonly entradaRepository: Repository<EntradaStream>,
     private readonly apiService: MediaMTXApiService,
-    private readonly estadoService: EstadoService,
+    private readonly estadoEntradasService: EstadoEntradasService,
     private readonly pathManager: PathManagerService,
   ) {}
 
@@ -64,8 +64,7 @@ export class StreamSyncService implements IStreamSyncService {
             `🔄 Entrada "${entrada.nombre}" cambió estado: ${entrada.activa ? 'ACTIVA' : 'INACTIVA'}`
           );
 
-          // 🔥 EMISIÓN WEBSOCKET EN TIEMPO REAL
-          this.estadoService.emitirCambioEstadoConexion(entrada.id, entrada.activa, pathInfo);
+          // 🔥 La emisión WebSocket ya se maneja automáticamente por EstadoEntradasService
         }
       });
 
@@ -100,8 +99,7 @@ export class StreamSyncService implements IStreamSyncService {
           `🔄 Entrada "${entrada.nombre}" sincronizada: ${entrada.activa ? 'ACTIVA' : 'INACTIVA'}`
         );
 
-        // 🔥 EMISIÓN WEBSOCKET EN TIEMPO REAL
-        this.estadoService.emitirCambioEstadoConexion(entrada.id, entrada.activa, pathInfo);
+        // 🔥 La emisión WebSocket ya se maneja automáticamente por EstadoEntradasService
         
         return true; // Hubo cambio
       }
