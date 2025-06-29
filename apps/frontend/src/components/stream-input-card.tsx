@@ -131,18 +131,17 @@ const StreamInputCard = memo(function StreamInputCard({
 
     if (hlsSalida && hlsSalida.urlDestino) {
       // Usar la URL completa del backend para evitar problemas de CORS o rutas relativas.
-      // Reemplazamos 'localhost' con la IP del host si es necesario,
-      // pero para desarrollo local 'localhost' debería funcionar si el navegador
-      // puede resolverlo correctamente.
       return hlsSalida.urlDestino;
     }
 
     console.warn('No se encontró una salida HLS con urlDestino en la entrada:', entrada);
     
-    // Fallback muy básico, pero no debería ser necesario.
+    // Fallback: construir URL HLS basada en el protocolo de entrada
     if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
       const streamPath = entrada.streamId.replace('publish:', '');
-      return `http://localhost:8888/${streamPath}/index.m3u8`;
+      return `http://localhost:8888/live/${streamPath}/index.m3u8`;
+    } else if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
+      return `http://localhost:8888/live/${entrada.streamKey}/index.m3u8`;
     }
     
     return null;
