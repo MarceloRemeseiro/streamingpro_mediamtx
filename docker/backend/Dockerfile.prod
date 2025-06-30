@@ -1,0 +1,105 @@
+# =============================================================================
+# STREAMINGPRO BACKEND - DOCKERFILE PRODUCCIÓN
+# =============================================================================
+# Multi-stage build optimizado para NestJS en producción
+# =============================================================================
+
+FROM node:22.16-alpine AS base
+
+# Instalar herramientas del sistema necesarias
+RUN apk add --no-cache \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Configurar pnpm
+RUN corepack enable pnpm
+RUN pnpm config set store-dir /root/.pnpm-store
+
+# =============================================================================
+# STAGE: Dependencies
+# =============================================================================
+FROM base AS dependencies
+
+WORKDIR /app
+
+# Copiar archivos de configuración de pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/backend/package.json ./apps/backend/
+
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile --prod=false
+
+# =============================================================================
+# STAGE: Build
+# =============================================================================
+FROM dependencies AS build
+
+WORKDIR /app
+
+# Copiar código fuente
+COPY apps/backend ./apps/backend
+
+# Generar Prisma Client
+WORKDIR /app/apps/backend
+RUN pnpm prisma generate
+
+# Build de la aplicación
+RUN pnpm build
+
+# =============================================================================
+# STAGE: Production Dependencies
+# =============================================================================
+FROM base AS prod-deps
+
+WORKDIR /app
+
+# Copiar archivos de configuración
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/backend/package.json ./apps/backend/
+
+# Instalar solo dependencias de producción
+RUN pnpm install --frozen-lockfile --prod=true
+
+# =============================================================================
+# STAGE: Production
+# =============================================================================
+FROM base AS production
+
+# Crear usuario no-root para seguridad
+RUN addgroup -g 1001 -S nestjs && \
+    adduser -S nestjs -u 1001
+
+WORKDIR /app
+
+# Copiar dependencias de producción
+COPY --from=prod-deps --chown=nestjs:nestjs /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=nestjs:nestjs /app/apps/backend/node_modules ./apps/backend/node_modules
+
+# Copiar aplicación compilada
+COPY --from=build --chown=nestjs:nestjs /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build --chown=nestjs:nestjs /app/apps/backend/prisma ./apps/backend/prisma
+
+# Copiar archivos necesarios
+COPY --chown=nestjs:nestjs apps/backend/package.json ./apps/backend/
+
+# Crear directorio para logs
+RUN mkdir -p /app/logs && chown nestjs:nestjs /app/logs
+
+# Cambiar al usuario no-root
+USER nestjs
+
+# Configurar variables de entorno
+ENV NODE_ENV=production
+ENV PORT=3000
+
+WORKDIR /app/apps/backend
+
+# Exponer puerto
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Comando de inicio
+CMD ["node", "dist/main.js"] 

@@ -54,7 +54,7 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://user_streaming:password_streaming@postgres:5432/streamingpro_dev_db?schema=public
       - DATABASE_TEST_URL=postgresql://user_streaming:password_streaming@postgres-test:5432/streamingpro_test_db?schema=public
-      # MediaMTX Configuration
+      # MediaMTX Configuration (bridge networking)
       - MEDIAMTX_API_URL=http://mediamtx:9997
       - MEDIAMTX_API_USER=admin
       - MEDIAMTX_API_PASS=admin123
@@ -98,13 +98,23 @@ services:
       context: docker/mediamtx
       dockerfile: Dockerfile
     ports:
-      - "8554:8554"    # RTSP
-      - "8888:8888"    # HLS
-      - "8889:8889"    # WebRTC
-      - "9997:9997"    # API
+      - "8554:8554"    # RTSP TCP
+      - "8000:8000/udp" # RTSP UDP RTP
+      - "8001:8001/udp" # RTSP UDP RTCP
       - "1935:1935"    # RTMP
-      - "8890:8890/udp"    # SRT (UDP)
-      - "8890:8890/tcp"    # SRT también puede usar TCP
+      - "8888:8888"    # HLS
+      - "8889:8889"    # WebRTC HTTP
+      - "8189:8189/udp" # WebRTC ICE UDP
+      - "8890:8890/udp" # SRT UDP (Puerto principal)
+      - "9997:9997"    # API
+      - "9998:9998"    # Metrics
+    environment:
+      # Configuraciones específicas para debug SRT
+      - MTX_LOGLEVEL=debug
+      - MTX_SRT=yes
+      - MTX_SRTADDRESS=:8890
+      # Configurar MediaMTX para mejor log de conexiones SRT
+      - MTX_RUNONCONNECT=echo "Cliente conectado tipo=$MTX_CONN_TYPE id=$MTX_CONN_ID"
     volumes:
       - ./docker/mediamtx/mediamtx.yml:/mediamtx.yml:ro
     networks:

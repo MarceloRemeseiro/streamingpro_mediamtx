@@ -1,0 +1,153 @@
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: streamingpro_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamingpro-network
+    # Solo exponer puerto en desarrollo local, no en producción
+    # ports:
+    #   - "5432:5432"
+
+  # Backend NestJS
+  backend:
+    container_name: streamingpro_backend_prod
+    build:
+      context: ./apps/backend
+      dockerfile: ../../docker/backend/Dockerfile.prod
+      target: production
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Expuesto para Nginx Proxy Manager
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      
+      # MediaMTX
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      MEDIAMTX_API_USER: ${MEDIAMTX_API_USER}
+      MEDIAMTX_API_PASSWORD: ${MEDIAMTX_API_PASSWORD}
+      MEDIAMTX_HLS_BASE_URL: ${MEDIAMTX_HLS_BASE_URL}
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mediamtx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - streamingpro-network
+
+  # Frontend Next.js
+  frontend:
+    container_name: streamingpro_frontend_prod
+    build:
+      context: ./apps/frontend
+      dockerfile: ../../docker/frontend/Dockerfile.prod
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL}
+        NEXT_PUBLIC_HLS_BASE_URL: ${NEXT_PUBLIC_HLS_BASE_URL}
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Expuesto para Nginx Proxy Manager
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - streamingpro-network
+
+  # MediaMTX Servidor de Medios
+  mediamtx:
+    container_name: streamingpro_mediamtx_prod
+    build:
+      context: docker/mediamtx
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      # Protocolos de streaming (expuestos externamente)
+      - "8554:8554"    # RTSP TCP
+      - "8000:8000/udp" # RTSP UDP RTP
+      - "8001:8001/udp" # RTSP UDP RTCP
+      - "1935:1935"    # RTMP
+      - "8888:8888"    # HLS - Expuesto para Nginx Proxy Manager
+      - "8889:8889"    # WebRTC HTTP
+      - "8189:8189/udp" # WebRTC ICE
+      - "8890:8890/udp" # SRT ⭐ PUERTO PRINCIPAL
+      # API y Métricas (interno - solo localhost)
+      - "127.0.0.1:9997:9997"  # API solo localhost por seguridad
+      - "127.0.0.1:9998:9998"  # Metrics solo localhost
+    environment:
+      # Configuraciones específicas para Hetzner
+      - MTX_LOGLEVEL=${MEDIAMTX_LOG_LEVEL:-info}
+      - MTX_SRT=yes
+      - MTX_SRTADDRESS=:8890
+      # IPs públicas para WebRTC
+      - MTX_WEBRTCADDITIONALHOSTS=${WEBRTC_ADDITIONAL_HOSTS}
+    volumes:
+      - ./docker/mediamtx/mediamtx.prod.yml:/mediamtx.yml:ro
+      - mediamtx_recordings:/recordings
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9997/v3/config/global/get"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - streamingpro-network
+
+  # ============================================================================
+  # NOTA: Nginx Proxy Manager se encarga del proxy reverso y SSL
+  # No necesitamos contenedor nginx separado
+  # ============================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_logs:
+    driver: local
+  mediamtx_recordings:
+    driver: local
+
+networks:
+  streamingpro-network:
+    driver: bridge 

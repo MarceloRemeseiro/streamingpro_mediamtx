@@ -1,0 +1,291 @@
+###############################################
+# StreamingPro MediaMTX Configuration - PRODUCTION
+# Optimizado para streaming profesional SRT/RTMP/HLS
+# Version: 1.0.0 (for MediaMTX v1.12.3+)
+###############################################
+
+###############################################
+# Global settings
+
+# Verbosity optimizado para producción
+logLevel: info
+logDestinations: [stdout]
+logFile: /var/log/mediamtx.log
+sysLogPrefix: streamingpro-mediamtx-prod
+
+# Timeouts optimizados para servidor Hetzner potente (6 entradas, 18 salidas, 23+ viewers)
+readTimeout: 30s
+writeTimeout: 30s
+writeQueueSize: 4096  # Aumentado para mejor rendimiento
+udpMaxPayloadSize: 1472
+
+# Configuración optimizada para carga media-alta
+rtpPort: 8000
+rtcpPort: 8001
+multicastRTPPort: 8002
+multicastRTCPPort: 8003
+
+# Commands ejecutados en eventos (deshabilitado en producción por seguridad)
+runOnConnect:
+runOnConnectRestart: no
+runOnDisconnect:
+
+###############################################
+# Global settings -> Authentication
+
+# Autenticación mejorada para producción
+authMethod: internal
+
+authInternalUsers:
+  # Usuario para streaming clients (solo publish/read)
+  - user: streamer
+    pass: 
+    ips: []
+    permissions:
+    - action: publish
+      path:
+    - action: read
+      path:
+    - action: playback
+      path:
+
+  # Admin restringido a red interna Docker + IPs específicas
+  - user: admin
+    pass: ${MEDIAMTX_API_PASSWORD}
+    ips: ['127.0.0.1', '::1', '172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+    permissions:
+    - action: api
+    - action: metrics
+    - action: pprof
+    - action: publish
+    - action: read
+
+###############################################
+# Global settings -> Control API
+
+# API protegida
+api: yes
+apiAddress: :9997
+apiEncryption: no
+apiServerKey: server.key
+apiServerCert: server.crt
+apiAllowOrigin: '*'
+# Solo permitir acceso desde backend y redes internas
+apiTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+###############################################
+# Global settings -> Metrics
+
+# Métricas habilitadas para monitoreo
+metrics: yes
+metricsAddress: :9998
+metricsEncryption: no
+metricsServerKey: server.key
+metricsServerCert: server.crt
+metricsAllowOrigin: '*'
+metricsTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+###############################################
+# Global settings -> PPROF
+
+# Profiling solo para debugging (considerar deshabilitar)
+pprof: no
+pprofAddress: :9999
+pprofEncryption: no
+pprofServerKey: server.key
+pprofServerCert: server.crt
+pprofAllowOrigin: '*'
+pprofTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+###############################################
+# Global settings -> Playback server
+
+# Grabaciones (habilitar si es necesario)
+playback: yes
+playbackAddress: :9996
+playbackEncryption: no
+playbackServerKey: server.key
+playbackServerCert: server.crt
+playbackAllowOrigin: '*'
+playbackTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+###############################################
+# Global settings -> RTSP server
+
+# RTSP optimizado para producción
+rtsp: yes
+rtspTransports: [tcp, udp]
+rtspEncryption: "no"
+rtspAddress: :8554
+rtspsAddress: :8322
+rtpAddress: :8000
+rtcpAddress: :8001
+multicastIPRange: 224.1.0.0/16
+multicastRTPPort: 8002
+multicastRTCPPort: 8003
+rtspServerKey: server.key
+rtspServerCert: server.crt
+rtspAuthMethods: [basic]
+
+###############################################
+# Global settings -> RTMP server
+
+# RTMP para compatibilidad con OBS/encoders
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+rtmpsAddress: :1936
+rtmpServerKey: server.key
+rtmpServerCert: server.crt
+
+###############################################
+# Global settings -> HLS server
+
+# HLS optimizado para baja latencia en producción
+hls: yes
+hlsAddress: :8888
+hlsEncryption: no
+hlsServerKey: server.key
+hlsServerCert: server.crt
+hlsAllowOrigin: '*'
+hlsTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+# Configuración HLS optimizada para 6 entradas + 18 salidas + 23 viewers
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+hlsSegmentCount: 4  # Reducido para menor latencia con tu carga
+hlsSegmentDuration: 1s  # Reducido para menor latencia
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 25M  # Ajustado para mejor rendimiento
+
+# Almacenamiento en RAM optimizado para servidor Hetzner (64GB)
+hlsDirectory: ''  # RAM storage para máximo rendimiento
+hlsMuxerCloseAfter: 30s  # Cerrar rápido streams inactivos para liberar recursos
+
+###############################################
+# Global settings -> WebRTC server
+
+# WebRTC para streaming en navegador
+webrtc: yes
+webrtcAddress: :8889
+webrtcEncryption: no
+webrtcServerKey: server.key
+webrtcServerCert: server.crt
+webrtcAllowOrigin: '*'
+webrtcTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+
+# Configuración de red para producción
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: ''
+webrtcIPsFromInterfaces: yes
+webrtcIPsFromInterfacesList: []
+
+# IPs adicionales configurables desde variable de entorno
+webrtcAdditionalHosts: []
+
+# ICE servers para NAT traversal
+webrtcICEServers2: 
+  - url: stun:stun.l.google.com:19302
+
+# Timeouts optimizados
+webrtcHandshakeTimeout: 15s
+webrtcTrackGatherTimeout: 3s
+webrtcSTUNGatherTimeout: 5s
+
+###############################################
+# Global settings -> SRT server
+
+# SRT como protocolo principal
+srt: yes
+srtAddress: :8890
+
+###############################################
+# Default path settings
+
+pathDefaults:
+  # Configuración por defecto para todos los paths
+  source: publisher
+  sourceFingerprint:
+  sourceOnDemand: no
+  sourceOnDemandStartTimeout: 10s
+  sourceOnDemandCloseAfter: 30s
+  
+  # Límite de lectores optimizado para tu carga (23+ viewers por stream)
+  maxReaders: 50  # Suficiente para tu caso de uso
+  
+  # SRT sin cifrado por defecto (puede configurarse por path)
+  srtReadPassphrase:
+  fallback:
+  useAbsoluteTimestamp: false
+
+  ###############################################
+  # Default path settings -> Record
+  
+  # Grabaciones deshabilitadas por defecto
+  record: no
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordPartDuration: 1s
+  recordSegmentDuration: 1h
+  recordDeleteAfter: 7d
+
+  ###############################################
+  # Default path settings -> Publisher source
+  
+  # Permitir override para hot-reload
+  overridePublisher: yes
+  srtPublishPassphrase:
+
+  ###############################################
+  # Default path settings -> RTSP source
+  
+  rtspTransport: automatic
+  rtspAnyPort: no
+  rtspRangeType:
+  rtspRangeStart:
+
+  ###############################################
+  # Default path settings -> Redirect source
+  
+  sourceRedirect:
+
+  ###############################################
+  # Default path settings -> Hooks
+  
+  # Hooks deshabilitados por seguridad en producción
+  runOnInit:
+  runOnInitRestart: no
+  runOnDemand:
+  runOnDemandRestart: no
+  runOnDemandStartTimeout: 10s
+  runOnDemandCloseAfter: 30s
+  runOnUnDemand:
+  runOnReady:
+  runOnReadyRestart: no
+  runOnNotReady:
+  runOnRead:
+  runOnReadRestart: no
+  runOnUnread:
+  runOnRecordSegmentCreate:
+  runOnRecordSegmentComplete:
+
+###############################################
+# Path settings
+
+# Los paths se crearán dinámicamente desde el backend
+paths:
+  # Configuración optimizada para StreamingPro (6 entradas, 18 salidas, 23+ viewers)
+  all_others:
+    # Permitir override del publisher para hot-reload
+    overridePublisher: yes
+    
+    # Límite de lectores optimizado para tu carga específica
+    maxReaders: 30  # Suficiente para 23 viewers + margen
+    
+    # Timeouts optimizados para servidor Hetzner
+    sourceOnDemandStartTimeout: 3s  # Más rápido con servidor potente
+    sourceOnDemandCloseAfter: 30s   # Liberar recursos más rápido
+    
+    # Configuración específica para streams de alta calidad
+    fallback: ""
+    useAbsoluteTimestamp: false 
