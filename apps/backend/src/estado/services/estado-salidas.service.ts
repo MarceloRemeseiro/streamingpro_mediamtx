@@ -209,6 +209,7 @@ export class EstadoSalidasService {
 
   /**
    * Genera el nombre del path de entrada en MediaMTX
+   * NOTA: Este método es solo para paths de entrada, no para outputs personalizados
    */
   private generarPathEntrada(entrada: any): string {
     // Coincidir con la lógica de PathManagerService.generateInputPathName()

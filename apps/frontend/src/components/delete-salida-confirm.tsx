@@ -27,18 +27,11 @@ export function DeleteSalidaConfirm({ salida, onSalidaEliminada, trigger }: Dele
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleEliminar = async () => {
-    try {
-      setIsLoading(true);
-      await salidasApi.eliminar(salida.id);
-      setOpen(false);
-      onSalidaEliminada();
-    } catch (error) {
-      console.error("Error al eliminar salida:", error);
-      // TODO: Mostrar notificación de error
-    } finally {
-      setIsLoading(false);
-    }
+  const handleEliminar = () => {
+    setIsLoading(true);
+    // Solo cerrar el modal y notificar - la eliminación real la maneja el callback
+    setOpen(false);
+    onSalidaEliminada();
   };
 
   return (

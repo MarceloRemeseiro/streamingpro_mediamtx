@@ -53,6 +53,8 @@ export function CustomOutputCard({
 }: CustomOutputCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { copyToClipboard } = useCopyToClipboard();
+
+  // Ya no necesitamos limpiar el streamId porque el backend lo envía limpio para outputs personalizados
   
   // Verificar si es output personalizado
   const esPersonalizado = esOutputPersonalizado(salida);
@@ -151,11 +153,11 @@ export function CustomOutputCard({
                     onCopy={() => copyToClipboard(salida.puertoSRT!.toString(), 'Puerto SRT')}
                   />
                 )}
-                {salida.streamId && (
+                {salida.streamIdSRT && (
                   <DetailRow 
                     label="StreamID"
-                    value={salida.streamId}
-                    onCopy={() => copyToClipboard(salida.streamId!, 'StreamID')}
+                    value={salida.streamIdSRT}
+                    onCopy={() => copyToClipboard(salida.streamIdSRT!, 'StreamID')}
                   />
                 )}
                 {salida.passphraseSRT && (

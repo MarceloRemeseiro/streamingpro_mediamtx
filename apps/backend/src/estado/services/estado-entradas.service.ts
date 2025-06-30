@@ -67,15 +67,18 @@ export class EstadoEntradasService {
 
   /**
    * Calcula el nombre del path en MediaMTX para una entrada
+   * Debe coincidir con generateInputPathName del PathManagerService
    */
   private calcularPathEntrada(entrada: EntradaStream): string {
     switch (entrada.protocolo) {
       case 'SRT':
-        // Remover el prefijo "publish:" si existe
+        // SRT usa path directo sin "live/"
         const streamId = entrada.streamId || entrada.nombre.toLowerCase().replace(/\s+/g, '_');
         return streamId.replace(/^publish:/, '');
       case 'RTMP':
-        return entrada.streamKey || entrada.nombre.toLowerCase().replace(/\s+/g, '_');
+        // RTMP usa "live/{streamKey}"
+        const streamKey = entrada.streamKey || entrada.nombre.toLowerCase().replace(/\s+/g, '_');
+        return `live/${streamKey}`;
       default:
         return entrada.nombre.toLowerCase().replace(/\s+/g, '_');
     }

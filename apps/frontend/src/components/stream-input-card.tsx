@@ -151,9 +151,11 @@ const StreamInputCard = memo(function StreamInputCard({
     
     // Fallback: construir URL HLS basada en el protocolo de entrada
     if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
+      // SRT usa path directo sin "live/"
       const streamPath = entrada.streamId.replace('publish:', '');
-      return `http://localhost:8888/live/${streamPath}/index.m3u8`;
+      return `http://localhost:8888/${streamPath}/index.m3u8`;
     } else if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
+      // RTMP usa "live/{streamKey}"
       return `http://localhost:8888/live/${entrada.streamKey}/index.m3u8`;
     }
     
@@ -265,9 +267,11 @@ const StreamInputCard = memo(function StreamInputCard({
     </Card>
   );
 }, (prevProps, nextProps) => {
-  // Solo re-renderizar si la entrada o su estado activo cambió
+  // Solo re-renderizar si la entrada o sus propiedades editables cambiaron
   return (
     prevProps.entrada.id === nextProps.entrada.id &&
+    prevProps.entrada.nombre === nextProps.entrada.nombre &&
+    prevProps.entrada.latenciaSRT === nextProps.entrada.latenciaSRT &&
     prevProps.entrada.activa === nextProps.entrada.activa &&
     prevProps.entrada.salidas.length === nextProps.entrada.salidas.length &&
     JSON.stringify(prevProps.entrada.salidas.map(s => ({ id: s.id, habilitada: s.habilitada }))) ===

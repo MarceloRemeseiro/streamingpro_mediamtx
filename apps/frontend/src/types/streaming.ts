@@ -52,7 +52,8 @@ export interface SalidaStream {
   puertoSRT?: number; // Para SRT
   passphraseSRT?: string; // Para SRT
   latenciaSRT?: number; // Para SRT
-  streamId?: string; // Para SRT
+  streamId?: string; // Para SRT (mapeado desde entrada)
+  streamIdSRT?: string; // Para SRT (específico del output personalizado)
   // Campos específicos para HLS (si se expanden en el futuro)
   segmentDuration?: number;
   playlistLength?: number;
@@ -80,6 +81,7 @@ export interface CrearSalidaDto {
   passphraseSRT?: string;
   latenciaSRT?: number;
   streamId?: string;
+  streamIdSRT?: string;
   // Campos HLS
   segmentDuration?: number;
   playlistLength?: number;

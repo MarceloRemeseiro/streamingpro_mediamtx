@@ -231,35 +231,37 @@ export class EntradaService {
         return;
       }
 
-      const pathName = this.calcularPathParaSalida(entrada);
+      // Calcular el path correcto según el protocolo de entrada
+      // RTMP: live/{streamKey}, SRT: {streamId}
+      const pathName = this.calcularPathParaLectura(entrada);
 
-      // 1. HLS - URL para consumo directo (con prefijo live/)
+      // 1. HLS - URL para consumo directo
       await this.salidaRepository.save({
         nombre: 'HLS',
         protocolo: ProtocoloSalida.HLS,
         entradaId,
         habilitada: true,
-        urlDestino: `http://localhost:8888/live/${pathName}/index.m3u8`,
+        urlDestino: `http://localhost:8888/${pathName}/index.m3u8`,
       });
 
-      // 2. SRT Caller - URL para consumo directo desde VLC (formato MediaMTX con prefijo live/)
+      // 2. SRT Caller - URL para consumo directo desde VLC
       await this.salidaRepository.save({
         nombre: 'SRT Pull',
         protocolo: ProtocoloSalida.SRT,
         entradaId,
         habilitada: true,
-        urlDestino: `srt://localhost:8890?streamid=read:live/${pathName}`,
+        urlDestino: `srt://localhost:8890?streamid=read:${pathName}`,
         puertoSRT: 8890,
         latenciaSRT: 40,
       });
 
-      // 3. RTMP - URL para consumo directo desde VLC (con prefijo live/)
+      // 3. RTMP - URL para consumo directo desde VLC
       await this.salidaRepository.save({
         nombre: 'RTMP Pull',
         protocolo: ProtocoloSalida.RTMP,
         entradaId,
         habilitada: true,
-        urlDestino: `rtmp://localhost:1935/live/${pathName}`,
+        urlDestino: `rtmp://localhost:1935/${pathName}`,
       });
 
       this.logger.log(`📦 Outputs por defecto creados para entrada '${entrada.nombre}': HLS, SRT Pull, RTMP Pull`);
@@ -288,6 +290,26 @@ export class EntradaService {
 
     // Fallback genérico, aunque no debería llegar aquí si la entrada está bien formada
     this.logger.warn(`No se pudo determinar un path de salida claro para la entrada ${entrada.id}. Usando nombre por defecto.`);
+    return entrada.nombre.toLowerCase().replace(/\\s+/g, '_');
+  }
+
+  /**
+   * Calcula el path correcto para LEER desde MediaMTX (outputs por defecto)
+   * Coincide con generateInputPathName del PathManagerService
+   */
+  private calcularPathParaLectura(entrada: EntradaStream): string {
+    if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
+      // RTMP usa live/{streamKey} para recibir, entonces leemos desde live/{streamKey}
+      return `live/${entrada.streamKey}`;
+    }
+
+    if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
+      // SRT usa {streamId} directo para recibir, entonces leemos desde {streamId}
+      return entrada.streamId.replace('publish:', '');
+    }
+
+    // Fallback genérico
+    this.logger.warn(`No se pudo determinar un path de lectura claro para la entrada ${entrada.id}. Usando nombre por defecto.`);
     return entrada.nombre.toLowerCase().replace(/\\s+/g, '_');
   }
 

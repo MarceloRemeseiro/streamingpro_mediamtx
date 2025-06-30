@@ -60,10 +60,11 @@ export const salidasApi = {
     return response.data;
   },
 
-  // Obtener salidas de una entrada (usando el servicio de estado)
+  // Obtener salidas de una entrada
   obtenerPorEntrada: async (entradaId: string): Promise<SalidaStream[]> => {
-    const response = await api.get(`/estado/entrada/${entradaId}/outputs`);
-    return response.data;
+    const response = await api.get(`/salida`);
+    // Filtrar por entradaId en el frontend ya que todas las salidas vienen con la relación
+    return response.data.filter((salida: SalidaStream) => salida.entradaId === entradaId);
   },
 
   // Obtener salida por ID

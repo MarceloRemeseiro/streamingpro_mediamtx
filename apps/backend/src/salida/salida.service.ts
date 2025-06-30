@@ -430,7 +430,19 @@ export class SalidaService {
   private mapEntradaDataToSalida(salida: SalidaStream): SalidaStream {
     if (salida.entrada) {
       salida.streamKey = salida.entrada.streamKey;
-      salida.streamId = salida.entrada.streamId;
+      
+      // Para outputs SRT personalizados: usar el streamIdSRT específico
+      if (salida.streamIdSRT) {
+        salida.streamId = salida.streamIdSRT;
+      } 
+      // Para outputs por defecto: usar el streamId limpio (sin "publish:")
+      else if (!this.esOutputPersonalizado(salida) && salida.entrada.streamId) {
+        salida.streamId = salida.entrada.streamId.replace('publish:', '');
+      }
+      // Para outputs personalizados sin streamIdSRT: usar el de la entrada tal como está
+      else {
+        salida.streamId = salida.entrada.streamId;
+      }
     }
     return salida;
   }
