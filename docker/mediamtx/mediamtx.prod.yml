@@ -151,7 +151,7 @@ hlsAllowOrigin: '*'
 hlsTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 
 # Configuración HLS optimizada para 6 entradas + 18 salidas + 23 viewers
-hlsAlwaysRemux: yes
+hlsAlwaysRemux: no  # ON-DEMAND para reducir latencia SRT
 hlsVariant: lowLatency
 hlsSegmentCount: 4  # Reducido para menor latencia con tu carga
 hlsSegmentDuration: 1s  # Reducido para menor latencia
