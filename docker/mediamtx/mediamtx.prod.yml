@@ -1,5 +1,5 @@
 ###############################################
-# StreamingPro MediaMTX Configuration - PRODUCTION
+# StreamingPro MediaMTX Configuration
 # Optimizado para streaming profesional SRT/RTMP/HLS
 # Version: 1.0.0 (for MediaMTX v1.12.3+)
 ###############################################
@@ -7,258 +7,334 @@
 ###############################################
 # Global settings
 
-# Verbosity optimizado para producción
+# Verbosity of the program; available values are "error", "warn", "info", "debug".
 logLevel: info
+# Destinations of log messages; available values are "stdout", "file" and "syslog".
 logDestinations: [stdout]
+# If "file" is in logDestinations, this is the file which will receive the logs.
 logFile: /var/log/mediamtx.log
-sysLogPrefix: streamingpro-mediamtx-prod
+# If "syslog" is in logDestinations, use prefix for logs.
+sysLogPrefix: streamingpro-mediamtx
 
-# Timeouts optimizados para servidor Hetzner potente (6 entradas, 18 salidas, 23+ viewers)
-readTimeout: 30s
-writeTimeout: 30s
-writeQueueSize: 4096  # Aumentado para mejor rendimiento
+# Timeout of read operations.
+readTimeout: 15s
+# Timeout of write operations.
+writeTimeout: 15s
+# Size of the queue of outgoing packets (aumentado para mejor rendimiento)
+writeQueueSize: 4096
+# Maximum size of outgoing UDP packets.
 udpMaxPayloadSize: 1472
 
-# Configuración optimizada para carga media-alta
-rtpPort: 8000
-rtcpPort: 8001
-multicastRTPPort: 8002
-multicastRTCPPort: 8003
-
-# Commands ejecutados en eventos (deshabilitado en producción por seguridad)
+# Command to run when a client connects to the server.
 runOnConnect:
+# Restart the command if it exits.
 runOnConnectRestart: no
+# Command to run when a client disconnects from the server.
 runOnDisconnect:
 
 ###############################################
 # Global settings -> Authentication
 
-# Autenticación mejorada para producción
+# Authentication method.
 authMethod: internal
 
+# Internal authentication.
 authInternalUsers:
-  # Usuario para streaming clients (solo publish/read)
-  - user: streamer
-    pass: 
-    ips: []
-    permissions:
-    - action: publish
-      path:
-    - action: read
-      path:
-    - action: playback
-      path:
+  # Default user for streaming clients
+- user: any
+  pass:
+  ips: []
+  permissions:
+  - action: publish
+    path:
+  - action: read
+    path:
+  - action: playback
+    path:
 
-  # Admin restringido a red interna Docker + IPs específicas
-  - user: admin
-    pass: ${MEDIAMTX_API_PASSWORD}
-    ips: ['127.0.0.1', '::1', '172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
-    permissions:
-    - action: api
-    - action: metrics
-    - action: pprof
-    - action: publish
-    - action: read
+  # Admin access for API (from our Docker network)
+- user: admin
+  pass: admin123
+  ips: ['127.0.0.1', '::1', '172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+  permissions:
+  - action: api
+  - action: metrics
+  - action: pprof
+  - action: publish
+  - action: read
 
 ###############################################
 # Global settings -> Control API
 
-# API protegida
+# Enable controlling the server through the Control API.
 api: yes
+# Address of the Control API listener.
 apiAddress: :9997
+# Enable TLS/HTTPS on the Control API server.
 apiEncryption: no
+# Path to the server key.
 apiServerKey: server.key
+# Path to the server certificate.
 apiServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 apiAllowOrigin: '*'
-# Solo permitir acceso desde backend y redes internas
+# List of IPs or CIDRs of proxies placed before the HTTP server.
 apiTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 
 ###############################################
 # Global settings -> Metrics
 
-# Métricas habilitadas para monitoreo
+# Enable Prometheus-compatible metrics.
 metrics: yes
+# Address of the metrics HTTP listener.
 metricsAddress: :9998
+# Enable TLS/HTTPS on the Metrics server.
 metricsEncryption: no
+# Path to the server key.
 metricsServerKey: server.key
+# Path to the server certificate.
 metricsServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 metricsAllowOrigin: '*'
+# List of IPs or CIDRs of proxies placed before the HTTP server.
 metricsTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 
 ###############################################
 # Global settings -> PPROF
 
-# Profiling solo para debugging (considerar deshabilitar)
-pprof: no
+# Enable pprof-compatible endpoint to monitor performances.
+pprof: yes
+# Address of the pprof listener.
 pprofAddress: :9999
+# Enable TLS/HTTPS on the pprof server.
 pprofEncryption: no
+# Path to the server key.
 pprofServerKey: server.key
+# Path to the server certificate.
 pprofServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 pprofAllowOrigin: '*'
+# List of IPs or CIDRs of proxies placed before the HTTP server.
 pprofTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 
 ###############################################
 # Global settings -> Playback server
 
-# Grabaciones (habilitar si es necesario)
+# Enable downloading recordings from the playback server.
 playback: yes
+# Address of the playback server listener.
 playbackAddress: :9996
+# Enable TLS/HTTPS on the playback server.
 playbackEncryption: no
+# Path to the server key.
 playbackServerKey: server.key
+# Path to the server certificate.
 playbackServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 playbackAllowOrigin: '*'
+# List of IPs or CIDRs of proxies placed before the HTTP server.
 playbackTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 
 ###############################################
 # Global settings -> RTSP server
 
-# RTSP optimizado para producción
+# Enable publishing and reading streams with the RTSP protocol.
 rtsp: yes
-rtspTransports: [tcp, udp]
+# List of enabled RTSP transport protocols.
+rtspTransports: [udp, multicast, tcp]
+# Encrypt handshakes and TCP streams with TLS (RTSPS).
 rtspEncryption: "no"
+# Address of the TCP/RTSP listener.
 rtspAddress: :8554
+# Address of the TCP/TLS/RTSPS listener.
 rtspsAddress: :8322
+# Address of the UDP/RTP listener.
 rtpAddress: :8000
+# Address of the UDP/RTCP listener.
 rtcpAddress: :8001
+# IP range of all UDP-multicast listeners.
 multicastIPRange: 224.1.0.0/16
+# Port of all UDP-multicast/RTP listeners.
 multicastRTPPort: 8002
+# Port of all UDP-multicast/RTCP listeners.
 multicastRTCPPort: 8003
+# Path to the server key.
 rtspServerKey: server.key
+# Path to the server certificate.
 rtspServerCert: server.crt
+# Authentication methods.
 rtspAuthMethods: [basic]
 
 ###############################################
 # Global settings -> RTMP server
 
-# RTMP para compatibilidad con OBS/encoders
+# Enable publishing and reading streams with the RTMP protocol.
 rtmp: yes
+# Address of the RTMP listener.
 rtmpAddress: :1935
+# Encrypt connections with TLS (RTMPS).
 rtmpEncryption: "no"
+# Address of the RTMPS listener.
 rtmpsAddress: :1936
+# Path to the server key.
 rtmpServerKey: server.key
+# Path to the server certificate.
 rtmpServerCert: server.crt
 
 ###############################################
 # Global settings -> HLS server
 
-# HLS optimizado para baja latencia en producción
+# Enable reading streams with the HLS protocol.
 hls: yes
+# Address of the HLS listener.
 hlsAddress: :8888
+# Enable TLS/HTTPS on the HLS server.
 hlsEncryption: no
+# Path to the server key.
 hlsServerKey: server.key
+# Path to the server certificate.
 hlsServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 hlsAllowOrigin: '*'
+# List of IPs or CIDRs of proxies placed before the HLS server.
 hlsTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
-
-# Configuración HLS optimizada para 6 entradas + 18 salidas + 23 viewers
-hlsAlwaysRemux: no  # ON-DEMAND para reducir latencia SRT
-hlsVariant: lowLatency
-hlsSegmentCount: 4  # Reducido para menor latencia con tu carga
-hlsSegmentDuration: 1s  # Reducido para menor latencia
-hlsPartDuration: 200ms
-hlsSegmentMaxSize: 25M  # Ajustado para mejor rendimiento
-
-# Almacenamiento en RAM optimizado para servidor Hetzner (64GB)
-hlsDirectory: ''  # RAM storage para máximo rendimiento
-hlsMuxerCloseAfter: 30s  # Cerrar rápido streams inactivos para liberar recursos
+# HÍBRIDO: Balance entre OBS publishing y VLC compatibility
+hlsAlwaysRemux: no
+# Variant optimizado para VLC según documentación MediaMTX oficial
+hlsVariant: mpegts
+# Number of HLS segments optimizado para estabilidad
+hlsSegmentCount: 7
+# Minimum duration of each segment optimizado para VLC
+hlsSegmentDuration: 3s
+# Minimum duration of each part según documentación MediaMTX
+hlsPartDuration: 500ms
+# Maximum size of each segment.
+hlsSegmentMaxSize: 50M
+# Directory in which to save segments (empty = keep in RAM).
+hlsDirectory: ''
+# Close muxer when no readers for this time (optimizado)
+hlsMuxerCloseAfter: 10s
 
 ###############################################
 # Global settings -> WebRTC server
 
-# WebRTC para streaming en navegador
+# Enable publishing and reading streams with the WebRTC protocol.
 webrtc: yes
+# Address of the WebRTC HTTP listener.
 webrtcAddress: :8889
+# Enable TLS/HTTPS on the WebRTC server.
 webrtcEncryption: no
+# Path to the server key.
 webrtcServerKey: server.key
+# Path to the server certificate.
 webrtcServerCert: server.crt
+# Value of the Access-Control-Allow-Origin header provided in every HTTP response.
 webrtcAllowOrigin: '*'
+# List of IPs or CIDRs of proxies placed before the WebRTC server.
 webrtcTrustedProxies: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
-
-# Configuración de red para producción
+# Address of a local UDP listener that will receive connections.
 webrtcLocalUDPAddress: :8189
+# Address of a local TCP listener that will receive connections.
 webrtcLocalTCPAddress: ''
+# Gather IPs from interfaces and send them to clients.
 webrtcIPsFromInterfaces: yes
+# List of interfaces whose IPs will be sent to clients.
 webrtcIPsFromInterfacesList: []
-
-# IPs adicionales configurables desde variable de entorno
+# List of additional hosts or IPs to send to clients.
 webrtcAdditionalHosts: []
-
-# ICE servers para NAT traversal
+# ICE servers for NAT traversal
 webrtcICEServers2: 
   - url: stun:stun.l.google.com:19302
-
-# Timeouts optimizados
-webrtcHandshakeTimeout: 15s
-webrtcTrackGatherTimeout: 3s
+# Time to wait for the WebRTC handshake to complete.
+webrtcHandshakeTimeout: 10s
+# Maximum time to gather video tracks.
+webrtcTrackGatherTimeout: 2s
+# The maximum time to gather STUN candidates.
 webrtcSTUNGatherTimeout: 5s
 
 ###############################################
 # Global settings -> SRT server
 
-# SRT como protocolo principal
+# Enable publishing and reading streams with the SRT protocol.
 srt: yes
+# Address of the SRT listener.
 srtAddress: :8890
+
+# NOTA: MediaMTX optimiza SRT a nivel de cliente, no servidor
+# Los parámetros de latencia se configuran en la URL del cliente
 
 ###############################################
 # Default path settings
 
 pathDefaults:
-  # Configuración por defecto para todos los paths
+  # Source of the stream - default is publisher (clients push streams)
   source: publisher
+  # If the source is a URL, and the source certificate is self-signed
   sourceFingerprint:
+  # Pull sources only when readers are connected (saves bandwidth)
   sourceOnDemand: no
   sourceOnDemandStartTimeout: 10s
-  sourceOnDemandCloseAfter: 30s
-  
-  # Límite de lectores optimizado para tu carga (23+ viewers por stream)
-  maxReaders: 50  # Suficiente para tu caso de uso
-  
-  # SRT sin cifrado por defecto (puede configurarse por path)
+  sourceOnDemandCloseAfter: 10s
+  # Maximum number of readers. Zero means no limit.
+  maxReaders: 0
+  # SRT encryption passphrase required to read from this path.
   srtReadPassphrase:
+  # Fallback path if stream is not available
   fallback:
+  # Route original timestamps instead of replacing them
   useAbsoluteTimestamp: false
 
   ###############################################
   # Default path settings -> Record
   
-  # Grabaciones deshabilitadas por defecto
+  # Record streams to disk (disabled by default)
   record: no
+  # Path of recording segments
   recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  # Format of recorded segments (fmp4 is more efficient than mpegts)
   recordFormat: fmp4
+  # Duration of each recording part
   recordPartDuration: 1s
+  # Minimum duration of each segment
   recordSegmentDuration: 1h
+  # Delete segments after this timespan (7 days)
   recordDeleteAfter: 7d
 
   ###############################################
   # Default path settings -> Publisher source
   
-  # Permitir override para hot-reload
+  # Allow another client to disconnect current publisher and publish in its place
   overridePublisher: yes
+  # SRT encryption passphrase required to publish to this path
   srtPublishPassphrase:
 
   ###############################################
   # Default path settings -> RTSP source
   
+  # Transport protocol for pulling RTSP streams
   rtspTransport: automatic
+  # Support sources that don't provide server ports
   rtspAnyPort: no
+  # Range header for starting streaming from specific offset
   rtspRangeType:
   rtspRangeStart:
 
   ###############################################
   # Default path settings -> Redirect source
   
+  # Path which clients will be redirected to
   sourceRedirect:
 
   ###############################################
   # Default path settings -> Hooks
   
-  # Hooks deshabilitados por seguridad en producción
+  # Commands to run on various events (disabled by default)
   runOnInit:
   runOnInitRestart: no
   runOnDemand:
   runOnDemandRestart: no
   runOnDemandStartTimeout: 10s
-  runOnDemandCloseAfter: 30s
+  runOnDemandCloseAfter: 10s
   runOnUnDemand:
   runOnReady:
   runOnReadyRestart: no
@@ -272,20 +348,26 @@ pathDefaults:
 ###############################################
 # Path settings
 
-# Los paths se crearán dinámicamente desde el backend
+# Configuraciones específicas por path.
+# Los paths se crearán dinámicamente desde nuestro backend.
 paths:
-  # Configuración optimizada para StreamingPro (6 entradas, 18 salidas, 23+ viewers)
+  # Configuración para todos los paths que no tengan configuración específica
   all_others:
     # Permitir override del publisher para hot-reload
     overridePublisher: yes
-    
-    # Límite de lectores optimizado para tu carga específica
-    maxReaders: 30  # Suficiente para 23 viewers + margen
-    
-    # Timeouts optimizados para servidor Hetzner
-    sourceOnDemandStartTimeout: 3s  # Más rápido con servidor potente
-    sourceOnDemandCloseAfter: 30s   # Liberar recursos más rápido
-    
-    # Configuración específica para streams de alta calidad
-    fallback: ""
-    useAbsoluteTimestamp: false 
+    # Máximo de lectores por stream
+    maxReaders: 100
+    # Timeout optimizado para streaming profesional
+    sourceOnDemandStartTimeout: 5s
+    sourceOnDemandCloseAfter: 30s
+
+  # Configuración especial para streams que requieren máxima compatibilidad VLC
+  # Usar patrón: stream_name_vlc para activar esta configuración
+  "~(.+)_vlc$":
+    # Permitir override del publisher
+    overridePublisher: yes
+    # Máximo de lectores optimizado para VLC compatibility
+    maxReaders: 50
+    # Timeouts ajustados para mejor estabilidad
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 60s 
