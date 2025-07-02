@@ -85,4 +85,22 @@ export interface CrearSalidaDto {
   // Campos HLS
   segmentDuration?: number;
   playlistLength?: number;
+}
+
+// Estadísticas de dispositivos conectados
+export interface EstadisticasDispositivos {
+  hls: number;
+  srt: number;
+  rtmp: number;
+  total: number;
+  byInput: EstadisticasDispositivosPorEntrada[];
+}
+
+export interface EstadisticasDispositivosPorEntrada {
+  inputName: string;
+  streamId: string;
+  hls: number;
+  srt: number;
+  rtmp: number;
+  total: number;
 } 

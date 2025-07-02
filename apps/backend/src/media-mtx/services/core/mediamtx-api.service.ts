@@ -410,4 +410,80 @@ export class MediaMTXApiService implements OnModuleInit {
   private isNotFoundError(error: any): boolean {
     return error instanceof AxiosError && error.response?.status === 404;
   }
+
+  /**
+   * Obtiene estadísticas de dispositivos conectados a outputs por defecto
+   * Usa APIs REST para mayor precisión en tiempo real
+   */
+  async getDefaultOutputsConnectionStats(streamIds: string[]): Promise<{
+    hls: number;
+    srt: number;
+    rtmp: number;
+    total: number;
+  }> {
+    try {
+      this.logger.debug(`📊 Obteniendo estadísticas para streamIds: ${streamIds.join(', ')}`);
+
+      // Obtener información de paths para contar lectores HLS
+      const paths = await this.listPaths();
+      let hlsCount = 0;
+      let srtCount = 0;
+      let rtmpCount = 0;
+
+      // 1. Contar lectores HLS desde los paths
+      for (const path of paths) {
+        // Solo contar si el path coincide con uno de nuestros streamIds
+        if (streamIds.includes(path.name)) {
+          // Contar lectores de tipo hlsMuxer
+          const hlsReaders = path.readers?.filter(reader => reader.type === 'hlsMuxer') || [];
+          hlsCount += hlsReaders.length;
+          
+          this.logger.debug(`📊 Path '${path.name}': ${hlsReaders.length} lectores HLS, ready: ${path.ready}`);
+        }
+      }
+
+      // 2. Contar conexiones SRT activas que lean nuestros streams
+      const srtConnections = await this.getSRTConnections();
+      srtCount = srtConnections.filter(conn => 
+        conn.state === 'read' && 
+        streamIds.some(streamId => {
+          // Verificar tanto el path como el streamId
+          return conn.path?.includes(streamId) || conn.streamId?.includes(streamId);
+        })
+      ).length;
+
+      // 3. Contar conexiones RTMP activas que lean nuestros streams
+      const rtmpConnections = await this.getRTMPConnections();
+      rtmpCount = rtmpConnections.filter(conn => 
+        conn.state === 'read' && 
+        streamIds.some(streamId => conn.path?.includes(streamId))
+      ).length;
+
+      const total = hlsCount + srtCount + rtmpCount;
+
+      this.logger.log(`📊 Estadísticas de conexiones: HLS=${hlsCount}, SRT=${srtCount}, RTMP=${rtmpCount}, Total=${total}`);
+      
+      // Log detallado para debugging
+      if (hlsCount > 0) {
+        this.logger.debug(`📊 Detalle HLS: ${hlsCount} muxers activos`);
+      }
+      if (srtCount > 0) {
+        this.logger.debug(`📊 Detalle SRT: ${srtCount} conexiones de lectura`);
+      }
+      if (rtmpCount > 0) {
+        this.logger.debug(`📊 Detalle RTMP: ${rtmpCount} conexiones de lectura`);
+      }
+
+      return {
+        hls: hlsCount,
+        srt: srtCount,
+        rtmp: rtmpCount,
+        total: total
+      };
+      
+    } catch (error) {
+      this.logger.error('❌ Error obteniendo estadísticas de outputs por defecto:', this.formatError(error));
+      throw new Error(`Error obteniendo estadísticas: ${this.formatError(error)}`);
+    }
+  }
 } 

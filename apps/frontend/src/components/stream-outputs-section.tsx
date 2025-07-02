@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from 'react';
+import React from 'react';
 import {
   DndContext,
   closestCenter,
@@ -53,6 +53,7 @@ interface StreamOutputsSectionProps {
   isDefaultOutputs?: boolean;
   onDeleteOutput?: (id: string) => void;
   isUpdating?: boolean;
+  deviceStats?: { total: number; hls: number; srt: number; rtmp: number };
 }
 
 interface SortableOutputItemProps {
@@ -97,7 +98,7 @@ function SortableOutputItem({
   );
 }
 
-const StreamOutputsSection = memo(function StreamOutputsSection({ 
+export function StreamOutputsSection({ 
   isExpanded, 
   onToggle, 
   outputs, 
@@ -111,6 +112,7 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
   isDefaultOutputs = false,
   onDeleteOutput,
   isUpdating,
+  deviceStats,
 }: StreamOutputsSectionProps) {
   const { copyToClipboard } = useCopyToClipboard();
   const sensors = useSensors(
@@ -123,6 +125,30 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
   const copiarAlPortapapeles = (texto: string, salida: SalidaStream) => {
     const label = `URL de ${salida.nombre}`;
     copyToClipboard(texto, label);
+  };
+
+  // Obtener contador de dispositivos para un protocolo específico
+  const getDeviceCount = (protocolo: string) => {
+    if (!deviceStats || !isDefaultOutputs) return 0;
+    
+    const count = (() => {
+      switch (protocolo.toLowerCase()) {
+        case 'hls':
+          return deviceStats.hls || 0;
+        case 'srt':
+        case 'srt pull':
+          return deviceStats.srt || 0;
+        case 'rtmp':
+        case 'rtmp pull':
+          return deviceStats.rtmp || 0;
+        default:
+          return 0;
+      }
+    })();
+    
+    // Debug simple
+    console.log(`📊 getDeviceCount ${protocolo}: ${count} (deviceStats:`, deviceStats, ')');
+    return count;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -139,52 +165,87 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
     }
   };
 
-  const renderOutputItem = (salida: SalidaStream) => (
-    <div key={salida.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Badge variant="secondary" className="text-xs px-2 py-1 shrink-0">
-          {salida.protocolo}
-        </Badge>
-        <div className="min-w-0 flex-1">
-          <span className="text-sm font-medium block truncate">{salida.nombre}</span>
-          {salida.urlDestino && (
-            <span className="text-xs text-muted-foreground block truncate">
-              {salida.urlDestino}
-            </span>
+  // Renderizado compacto para outputs por defecto en una sola línea
+  const renderDefaultOutputsCompact = () => (
+    <div className="flex gap-2 flex-wrap">
+      {outputs.map((salida) => {
+        const deviceCount = getDeviceCount(salida.nombre);
+        
+        return (
+          <div key={salida.id} className="flex items-center gap-2 p-2 bg-muted rounded-lg flex-1 min-w-0">
+            <Badge variant="secondary" className="text-xs px-2 py-1 shrink-0">
+              {salida.protocolo}
+            </Badge>
+            <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 border-blue-200">
+              {deviceCount}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => copiarAlPortapapeles(salida.urlDestino || '', salida)}
+              title="Copiar URL"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderOutputItem = (salida: SalidaStream) => {
+    const deviceCount = getDeviceCount(salida.nombre);
+    
+    return (
+      <div key={salida.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Badge variant="secondary" className="text-xs px-2 py-1 shrink-0">
+            {salida.protocolo}
+          </Badge>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium block truncate">{salida.nombre}</span>
+              {isDefaultOutputs && deviceCount > 0 && (
+                <Badge variant="outline" className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border-blue-200">
+                  {deviceCount}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isDefaultOutputs ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => copiarAlPortapapeles(salida.urlDestino || '', salida)}
+              title="Copiar URL"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          ) : (
+            <>
+              <OutputSwitchConfirm
+                isEnabled={salida.habilitada}
+                outputName={salida.nombre}
+                onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
+              />
+              <EditSalidaModal
+                salida={salida}
+                onSalidaActualizada={onEntradaActualizada}
+              />
+              <DeleteSalidaConfirm
+                salida={salida}
+                onSalidaEliminada={onEntradaActualizada}
+              />
+            </>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {isDefaultOutputs ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => copiarAlPortapapeles(salida.urlDestino || '', salida)}
-            title="Copiar URL"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-        ) : (
-          <>
-            <OutputSwitchConfirm
-              isEnabled={salida.habilitada}
-              outputName={salida.nombre}
-              onConfirm={(enabled) => onActualizarSalida(salida.id, enabled)}
-            />
-            <EditSalidaModal
-              salida={salida}
-              onSalidaActualizada={onEntradaActualizada}
-            />
-            <DeleteSalidaConfirm
-              salida={salida}
-              onSalidaEliminada={onEntradaActualizada}
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
   
   const sortableItems = outputs.map(o => o.id);
 
@@ -203,7 +264,11 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-2 px-2 pt-2">
-        {!isDefaultOutputs && onReorderOutputs ? (
+        {isDefaultOutputs ? (
+          // Renderizado compacto para outputs por defecto
+          renderDefaultOutputsCompact()
+        ) : onReorderOutputs ? (
+          // Renderizado con drag & drop para outputs personalizados
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -231,6 +296,7 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
             </SortableContext>
           </DndContext>
         ) : (
+          // Renderizado normal sin drag & drop
           <div className="space-y-2">
             {outputs.map((salida) => renderOutputItem(salida))}
           </div>
@@ -247,14 +313,4 @@ const StreamOutputsSection = memo(function StreamOutputsSection({
       </CollapsibleContent>
     </Collapsible>
   );
-}, (prevProps, nextProps) => {
-  // Solo re-renderizar si hay cambios en las salidas o estado de expansión
-  return (
-    prevProps.isExpanded === nextProps.isExpanded &&
-    prevProps.outputs.length === nextProps.outputs.length &&
-    JSON.stringify(prevProps.outputs.map(o => ({ id: o.id, habilitada: o.habilitada, nombre: o.nombre }))) ===
-    JSON.stringify(nextProps.outputs.map(o => ({ id: o.id, habilitada: o.habilitada, nombre: o.nombre })))
-  );
-});
-
-export { StreamOutputsSection }; 
+} 

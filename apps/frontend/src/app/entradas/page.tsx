@@ -9,13 +9,18 @@ import { EntradaStream, SalidaStream } from '@/types/streaming';
 import { entradasApi, salidasApi } from '@/lib/api';
 import { useSocket } from '@/components/socket-provider';
 import { SortableGrid } from '@/components/sortable-grid';
+import { useDeviceStats } from '@/lib/hooks';
 import toast from 'react-hot-toast';
 
 export default function EntradasPage() {
   const socket = useSocket();
+  const { stats: deviceStats } = useDeviceStats();
   const [entradas, setEntradas] = useState<EntradaStream[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Debug simple para stats
+  console.log('📊 EntradasPage - deviceStats:', deviceStats);
 
   const fetchEntradas = useCallback(async () => {
     try {
@@ -193,13 +198,14 @@ export default function EntradasPage() {
             <StreamInputCard
               key={entrada.id}
               entrada={entrada}
+              stats={deviceStats}
               dragListeners={listeners}
               isDragging={isDragging}
               onEliminar={handleEliminarEntrada}
               onEliminarSalida={handleEliminarSalida}
               onActualizarSalida={handleActualizarSalida}
               onEntradaActualizada={fetchEntradas}
-              onReorderOutputs={(reordered) => handleReorderOutputs(entrada.id, reordered)}
+              onReorderOutputs={(reorderedOutputs) => handleReorderOutputs(entrada.id, reorderedOutputs)}
             />
           )}
         </SortableGrid>

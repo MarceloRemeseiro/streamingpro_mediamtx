@@ -3,6 +3,7 @@ import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { EstadoEntradasService } from './services/estado-entradas.service';
 import { EstadoSalidasService } from './services/estado-salidas.service';
+import { StreamIntegrationService } from '../media-mtx/services/integration/stream-integration.service';
 
 @WebSocketGateway({
   cors: {
@@ -22,6 +23,7 @@ export class EstadoCoordinadorService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly estadoEntradasService: EstadoEntradasService,
     private readonly estadoSalidasService: EstadoSalidasService,
+    private readonly streamIntegrationService: StreamIntegrationService,
   ) {}
 
   async onModuleInit() {
@@ -48,6 +50,9 @@ export class EstadoCoordinadorService implements OnModuleInit, OnModuleDestroy {
         // Verificar estados de outputs (PIDs)
         await this.estadoSalidasService.verificarEstadosOutputs();
         
+        // Obtener y emitir estadísticas de dispositivos conectados
+        await this.emitirEstadisticasDispositivos();
+        
         // Emitir estado general después de verificar todo
         await this.emitirEstadoGeneral();
       } catch (error) {
@@ -71,6 +76,26 @@ export class EstadoCoordinadorService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       this.logger.error('Error emitiendo estado general:', error.message);
+    }
+  }
+
+  /**
+   * Obtiene y emite estadísticas de dispositivos conectados via WebSocket
+   */
+  private async emitirEstadisticasDispositivos(): Promise<void> {
+    try {
+      const estadisticas = await this.streamIntegrationService.getDefaultOutputsConnectionStats();
+      
+      if (this.server) {
+        this.server.emit('device-stats-update', {
+          stats: estadisticas,
+          timestamp: new Date().toISOString(),
+        });
+        
+        this.logger.debug(`📊 WebSocket: Estadísticas de dispositivos emitidas - Total: ${estadisticas.total} (HLS: ${estadisticas.hls}, SRT: ${estadisticas.srt}, RTMP: ${estadisticas.rtmp})`);
+      }
+    } catch (error) {
+      this.logger.error('Error emitiendo estadísticas de dispositivos:', error.message);
     }
   }
 

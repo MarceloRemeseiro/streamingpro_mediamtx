@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { EntradaStream, SalidaStream, CrearEntradaDto, CrearSalidaDto } from '@/types/streaming';
+import { EntradaStream, SalidaStream, CrearEntradaDto, CrearSalidaDto, EstadisticasDispositivos } from '@/types/streaming';
 import { config } from './config';
 
 const api = axios.create({
@@ -93,6 +93,15 @@ export const salidasApi = {
   // Eliminar salida
   eliminar: async (id: string): Promise<void> => {
     await api.delete(`/salida/${id}`);
+  },
+};
+
+// API de MediaMTX - Estadísticas
+export const mediaMtxApi = {
+  // Obtener estadísticas de dispositivos conectados a outputs por defecto
+  obtenerEstadisticasOutputsPorDefecto: async (): Promise<EstadisticasDispositivos> => {
+    const response = await api.get('/media-mtx/stats/default-outputs');
+    return response.data.data;
   },
 };
 

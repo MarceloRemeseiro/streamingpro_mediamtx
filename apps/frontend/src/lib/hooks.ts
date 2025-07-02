@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { EstadisticasDispositivos } from '@/types/streaming';
+import { mediaMtxApi } from './api';
+import { useSocket } from '@/components/socket-provider';
 
 /**
  * Hook para manejar estado persistente en localStorage
@@ -55,4 +58,51 @@ export function useCollapseState(entradaId: string) {
     customOutputsExpanded,
     setCustomOutputsExpanded,
   };
+}
+
+/**
+ * Hook para obtener estadísticas de dispositivos conectados en tiempo real via WebSocket
+ * @returns Objeto con estadísticas, loading y error
+ */
+export function useDeviceStats() {
+  const [stats, setStats] = useState<EstadisticasDispositivos | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const socket = useSocket();
+
+  useEffect(() => {
+    // Fetch inicial via API
+    const fetchInitialStats = async () => {
+      try {
+        const data = await mediaMtxApi.obtenerEstadisticasOutputsPorDefecto();
+        setStats(data);
+        setLoading(false);
+      } catch (err) {
+        console.warn('Error fetching initial device stats:', err);
+        setError(err instanceof Error ? err.message : 'Error obteniendo estadísticas iniciales');
+        setLoading(false);
+      }
+    };
+
+    fetchInitialStats();
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listener para actualizaciones via WebSocket
+    const handleDeviceStatsUpdate = (data: { stats: EstadisticasDispositivos; timestamp: string }) => {
+      console.log('📊 Stats actualizadas:', data.stats);
+      setStats(data.stats);
+      setError(null);
+    };
+
+    socket.on('device-stats-update', handleDeviceStatsUpdate);
+
+    return () => {
+      socket.off('device-stats-update', handleDeviceStatsUpdate);
+    };
+  }, [socket]);
+
+  return { stats, loading, error };
 } 

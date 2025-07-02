@@ -5,6 +5,8 @@ import { PathManagerService } from '../core/path-manager.service';
 import { StreamSyncService } from './stream-sync.service';
 import { MediaMTXApiService } from '../core/mediamtx-api.service';
 import { StreamingUrls } from '../../interfaces/mediamtx-api.interface';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 /**
  * Servicio principal de integración entre las entidades de BD y MediaMTX
@@ -18,6 +20,10 @@ export class StreamIntegrationService {
     private readonly pathManager: PathManagerService,
     private readonly syncService: StreamSyncService,
     private readonly apiService: MediaMTXApiService,
+    @InjectRepository(SalidaStream)
+    private readonly salidaRepository: Repository<SalidaStream>,
+    @InjectRepository(EntradaStream)
+    private readonly entradaRepository: Repository<EntradaStream>,
   ) {}
 
   // =============================================================================
@@ -234,6 +240,105 @@ export class StreamIntegrationService {
       return cleaned;
     } catch (error) {
       this.logger.error('❌ Error durante limpieza de paths:', error.message);
+      throw error;
+    }
+  }
+
+  // =============================================================================
+  // ESTADÍSTICAS DE OUTPUTS POR DEFECTO
+  // =============================================================================
+
+  /**
+   * Obtiene estadísticas de dispositivos conectados a outputs por defecto
+   */
+  async getDefaultOutputsConnectionStats(): Promise<{
+    hls: number;
+    srt: number;
+    rtmp: number;
+    total: number;
+    byInput: {
+      inputName: string;
+      streamId: string;
+      hls: number;
+      srt: number;
+      rtmp: number;
+      total: number;
+    }[];
+  }> {
+    this.logger.log('📊 Obteniendo estadísticas de outputs por defecto');
+
+    try {
+      // 1. Obtener todas las entradas activas con sus outputs por defecto
+      const entradasActivas = await this.entradaRepository.find({
+        where: { activa: true },
+        relations: ['salidas'],
+      });
+
+      if (entradasActivas.length === 0) {
+        return {
+          hls: 0,
+          srt: 0,
+          rtmp: 0,
+          total: 0,
+          byInput: [],
+        };
+      }
+
+      // 2. Filtrar solo outputs por defecto y obtener streamIds
+      const OUTPUTS_POR_DEFECTO = ['SRT Pull', 'RTMP Pull', 'HLS'];
+      const streamIds: string[] = [];
+      const inputStreamMap: { [streamId: string]: string } = {};
+
+      for (const entrada of entradasActivas) {
+        const outputsPorDefecto = entrada.salidas.filter(salida => 
+          OUTPUTS_POR_DEFECTO.includes(salida.nombre) && salida.habilitada
+        );
+
+        if (outputsPorDefecto.length > 0 && entrada.streamId) {
+          // Usar el streamId limpio (sin prefijo "publish:")
+          const cleanStreamId = entrada.streamId.replace('publish:', '');
+          streamIds.push(cleanStreamId);
+          inputStreamMap[cleanStreamId] = entrada.nombre;
+        }
+      }
+
+      if (streamIds.length === 0) {
+        return {
+          hls: 0,
+          srt: 0,
+          rtmp: 0,
+          total: 0,
+          byInput: [],
+        };
+      }
+
+      // 3. Obtener estadísticas de MediaMTX
+      const totalStats = await this.apiService.getDefaultOutputsConnectionStats(streamIds);
+
+      // 4. Obtener estadísticas por entrada individual (opcional, para detalles)
+      const byInput = await Promise.all(
+        streamIds.map(async (streamId) => {
+          const inputStats = await this.apiService.getDefaultOutputsConnectionStats([streamId]);
+          return {
+            inputName: inputStreamMap[streamId],
+            streamId: streamId,
+            hls: inputStats.hls,
+            srt: inputStats.srt,
+            rtmp: inputStats.rtmp,
+            total: inputStats.total,
+          };
+        })
+      );
+
+      this.logger.log(`📊 Estadísticas obtenidas: HLS=${totalStats.hls}, SRT=${totalStats.srt}, RTMP=${totalStats.rtmp}, Total=${totalStats.total}`);
+
+      return {
+        ...totalStats,
+        byInput,
+      };
+
+    } catch (error) {
+      this.logger.error('❌ Error obteniendo estadísticas de outputs por defecto:', error.message);
       throw error;
     }
   }

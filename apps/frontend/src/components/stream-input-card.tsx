@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from 'react';
+import React from 'react';
 import { 
   Card, 
   CardContent, 
@@ -18,7 +18,7 @@ import {
   GripVertical,
   Minus
 } from 'lucide-react';
-import { EntradaStream, ProtocoloStream, SalidaStream } from '@/types/streaming';
+import { EntradaStream, ProtocoloStream, SalidaStream, EstadisticasDispositivos } from '@/types/streaming';
 import { EditEntradaModal } from './edit-entrada-modal';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
 import { useCollapseState } from '@/lib/hooks';
@@ -30,6 +30,7 @@ import { DraggableSyntheticListeners } from '@dnd-kit/core';
 
 interface StreamInputCardProps {
   entrada: EntradaStream;
+  stats?: EstadisticasDispositivos | null;
   dragListeners: DraggableSyntheticListeners;
   isDragging: boolean;
   onEliminar: (id: string) => void;
@@ -39,8 +40,9 @@ interface StreamInputCardProps {
   onReorderOutputs: (reorderedOutputs: SalidaStream[]) => void;
 }
 
-const StreamInputCard = memo(function StreamInputCard({ 
+export function StreamInputCard({ 
   entrada, 
+  stats,
   dragListeners,
   isDragging,
   onEliminar, 
@@ -49,7 +51,7 @@ const StreamInputCard = memo(function StreamInputCard({
   onEntradaActualizada,
   onReorderOutputs,
 }: StreamInputCardProps) {
-  // Estado de collapses persistente en localStorage
+  // Manejo del estado de collapses en localStorage
   const {
     videoExpanded,
     setVideoExpanded,
@@ -87,6 +89,29 @@ const StreamInputCard = memo(function StreamInputCard({
   const copiarAlPortapapeles = (texto: string, label?: string) => {
     copyToClipboard(texto, label);
   };
+
+  // Cálculo simple de estadísticas sin useMemo
+  const calcularEstadisticasEntrada = () => {
+    // Si no hay stats o la entrada no está activa con streamId, devolver 0
+    if (!stats || !entrada.streamId || !entrada.activa) {
+      return { total: 0, hls: 0, srt: 0, rtmp: 0 };
+    }
+    
+    // Usar las estadísticas globales directamente
+    return {
+      total: stats.total || 0,
+      hls: stats.hls || 0,
+      srt: stats.srt || 0,
+      rtmp: stats.rtmp || 0
+    };
+  };
+
+  const entradaStats = calcularEstadisticasEntrada();
+  
+  // Log simple para debug solo cuando hay stats
+  if (stats) {
+    console.log(`📊 StreamInputCard ${entrada.nombre} - Stats:`, entradaStats);
+  }
 
   const obtenerStreamIdLimpio = (streamId: string) => {
     // Para el nuevo formato simple: publish:HASH -> extraer solo HASH
@@ -190,6 +215,11 @@ const StreamInputCard = memo(function StreamInputCard({
             >
               {entrada.protocolo}
             </Badge>
+            {entradaStats.total > 0 && (
+              <Badge variant="outline" className="text-xs px-2 py-1 bg-green-50 text-green-700 border-green-200">
+                {entradaStats.total} conectado{entradaStats.total !== 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <EditEntradaModal 
@@ -246,6 +276,7 @@ const StreamInputCard = memo(function StreamInputCard({
           onEntradaActualizada={onEntradaActualizada}
           showCreateButton={false}
           isDefaultOutputs={true}
+          deviceStats={entradaStats}
         />
 
         {/* Outputs Personalizados */}
@@ -266,17 +297,4 @@ const StreamInputCard = memo(function StreamInputCard({
       </CardContent>
     </Card>
   );
-}, (prevProps, nextProps) => {
-  // Solo re-renderizar si la entrada o sus propiedades editables cambiaron
-  return (
-    prevProps.entrada.id === nextProps.entrada.id &&
-    prevProps.entrada.nombre === nextProps.entrada.nombre &&
-    prevProps.entrada.latenciaSRT === nextProps.entrada.latenciaSRT &&
-    prevProps.entrada.activa === nextProps.entrada.activa &&
-    prevProps.entrada.salidas.length === nextProps.entrada.salidas.length &&
-    JSON.stringify(prevProps.entrada.salidas.map(s => ({ id: s.id, habilitada: s.habilitada }))) ===
-    JSON.stringify(nextProps.entrada.salidas.map(s => ({ id: s.id, habilitada: s.habilitada })))
-  );
-});
-
-export { StreamInputCard }; 
+} 

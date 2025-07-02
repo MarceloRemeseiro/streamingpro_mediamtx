@@ -64,6 +64,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       console.log('📡 SocketProvider - Evento estado-actualizado recibido:', data);
     });
 
+    newSocket.on('device-stats-update', (data) => {
+      console.log('📊 SocketProvider - Evento device-stats-update recibido:', data);
+    });
+
     setSocket(newSocket);
     console.log('🔄 Socket.IO: Inicializando conexión...');
 

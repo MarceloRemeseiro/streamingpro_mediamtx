@@ -340,4 +340,26 @@ export class MediaMTXController {
       );
     }
   }
+
+  // =============================================================================
+  // ESTADÍSTICAS DE CONEXIONES OUTPUTS POR DEFECTO
+  // =============================================================================
+
+  @Get('stats/default-outputs')
+  async getDefaultOutputsStats() {
+    try {
+      const stats = await this.integrationService.getDefaultOutputsConnectionStats();
+      return {
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error('Error obteniendo estadísticas de outputs por defecto:', error.message);
+      throw new HttpException(
+        'Error obteniendo estadísticas de outputs por defecto',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 } 
