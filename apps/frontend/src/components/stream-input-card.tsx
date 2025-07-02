@@ -92,17 +92,34 @@ export function StreamInputCard({
 
   // Cálculo simple de estadísticas sin useMemo
   const calcularEstadisticasEntrada = () => {
-    // Si no hay stats o la entrada no está activa con streamId, devolver 0
-    if (!stats || !entrada.streamId || !entrada.activa) {
+    // Si no hay stats, devolver 0
+    if (!stats || !stats.byInput) {
       return { total: 0, hls: 0, srt: 0, rtmp: 0 };
     }
     
-    // Usar las estadísticas globales directamente
+    // Para RTMP, verificar que tenga streamKey y esté activa
+    // Para SRT, verificar que tenga streamId y esté activa  
+    const tieneIdentificador = (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) ||
+                               (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId);
+    
+    if (!tieneIdentificador || !entrada.activa) {
+      return { total: 0, hls: 0, srt: 0, rtmp: 0 };
+    }
+
+    // Buscar las estadísticas específicas de esta entrada por nombre
+    const entradaEspecifica = stats.byInput.find(item => item.inputName === entrada.nombre);
+    
+    if (!entradaEspecifica) {
+      // Si no encontramos la entrada específica, retornar ceros
+      return { total: 0, hls: 0, srt: 0, rtmp: 0 };
+    }
+
+    // Devolver las estadísticas específicas de esta entrada
     return {
-      total: stats.total || 0,
-      hls: stats.hls || 0,
-      srt: stats.srt || 0,
-      rtmp: stats.rtmp || 0
+      total: entradaEspecifica.total || 0,
+      hls: entradaEspecifica.hls || 0,
+      srt: entradaEspecifica.srt || 0,
+      rtmp: entradaEspecifica.rtmp || 0
     };
   };
 

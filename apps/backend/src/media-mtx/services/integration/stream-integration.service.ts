@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EntradaStream } from '../../../entrada/entities/entrada.entity';
 import { SalidaStream } from '../../../salida/entities/salida.entity';
+import { ProtocoloStream } from '../../../entities/enums';
 import { PathManagerService } from '../core/path-manager.service';
 import { StreamSyncService } from './stream-sync.service';
 import { MediaMTXApiService } from '../core/mediamtx-api.service';
@@ -294,11 +295,22 @@ export class StreamIntegrationService {
           OUTPUTS_POR_DEFECTO.includes(salida.nombre) && salida.habilitada
         );
 
-        if (outputsPorDefecto.length > 0 && entrada.streamId) {
-          // Usar el streamId limpio (sin prefijo "publish:")
-          const cleanStreamId = entrada.streamId.replace('publish:', '');
-          streamIds.push(cleanStreamId);
-          inputStreamMap[cleanStreamId] = entrada.nombre;
+        if (outputsPorDefecto.length > 0) {
+          let pathName: string | null = null;
+          
+          // Calcular path según protocolo (igual que calcularPathParaLectura)
+          if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
+            // RTMP usa live/{streamKey} para recibir
+            pathName = `live/${entrada.streamKey}`;
+          } else if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
+            // SRT usa {streamId} directo (sin prefijo "publish:")
+            pathName = entrada.streamId.replace('publish:', '');
+          }
+
+          if (pathName) {
+            streamIds.push(pathName);
+            inputStreamMap[pathName] = entrada.nombre;
+          }
         }
       }
 
@@ -317,11 +329,11 @@ export class StreamIntegrationService {
 
       // 4. Obtener estadísticas por entrada individual (opcional, para detalles)
       const byInput = await Promise.all(
-        streamIds.map(async (streamId) => {
-          const inputStats = await this.apiService.getDefaultOutputsConnectionStats([streamId]);
+        streamIds.map(async (pathName) => {
+          const inputStats = await this.apiService.getDefaultOutputsConnectionStats([pathName]);
           return {
-            inputName: inputStreamMap[streamId],
-            streamId: streamId,
+            inputName: inputStreamMap[pathName],
+            streamId: pathName, // Realmente es pathName (puede ser live/xxx para RTMP)
             hls: inputStats.hls,
             srt: inputStats.srt,
             rtmp: inputStats.rtmp,
