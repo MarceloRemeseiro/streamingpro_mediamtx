@@ -117,7 +117,7 @@ health_check() {
     sleep 10
     
     # Verificar backend
-    if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+    if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
         success "Backend está funcionando"
     else
         warning "Backend no responde en el health check"
@@ -131,7 +131,7 @@ health_check() {
     fi
     
     # Verificar frontend
-    if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    if curl -f http://localhost:3001 > /dev/null 2>&1; then
         success "Frontend está funcionando"
     else
         warning "Frontend no responde"
@@ -142,7 +142,7 @@ show_info() {
     log "📋 Información del deployment:"
     echo ""
     echo "🌐 URLs de acceso:"
-    echo "   Frontend: http://$(hostname -I | awk '{print $1}'):3000"
+    echo "   Frontend: http://$(hostname -I | awk '{print $1}'):3001"
     echo "   Backend:  http://$(hostname -I | awk '{print $1}'):3000/api"
     echo ""
     echo "📡 Puertos de streaming:"

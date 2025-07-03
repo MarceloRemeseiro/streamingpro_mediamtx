@@ -174,7 +174,7 @@ ssh $SERVER_USER@$SERVER_IP << 'EOF'
     show_info "Verificando health de los servicios..."
     
     # Verificar backend
-    if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+    if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
         show_success "Backend: Health check OK"
     else
         show_warning "Backend: Health check falló (puede necesitar más tiempo)"
@@ -229,5 +229,5 @@ echo "  # Verificar estado:"
 echo "  ssh $SERVER_USER@$SERVER_IP 'cd $SERVER_PATH && docker-compose -f docker-compose.prod.yml --env-file .env.production ps'"
 echo ""
 echo "  # Verificar health checks:"
-echo "  ssh $SERVER_USER@$SERVER_IP 'curl -f http://localhost:3000/health && echo \"Backend OK\"'"
+echo "  ssh $SERVER_USER@$SERVER_IP 'curl -f http://localhost:3000/api/health && echo \"Backend OK\"'"
 echo "" 
