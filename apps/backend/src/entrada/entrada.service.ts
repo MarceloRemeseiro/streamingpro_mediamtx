@@ -235,13 +235,19 @@ export class EntradaService {
       // RTMP: live/{streamKey}, SRT: {streamId}
       const pathName = this.calcularPathParaLectura(entrada);
 
+      // Obtener configuración del servidor desde variables de entorno
+      const serverIp = process.env.SERVER_IP || 'localhost';
+      const hlsPort = process.env.HLS_PORT || '8888';
+      const srtPort = process.env.SRT_PORT || '8890';
+      const rtmpPort = process.env.RTMP_PORT || '1935';
+
       // 1. HLS - URL para consumo directo
       await this.salidaRepository.save({
         nombre: 'HLS',
         protocolo: ProtocoloSalida.HLS,
         entradaId,
         habilitada: true,
-        urlDestino: `http://localhost:8888/${pathName}/index.m3u8`,
+        urlDestino: `http://${serverIp}:${hlsPort}/${pathName}/index.m3u8`,
       });
 
       // 2. SRT Caller - URL para consumo directo desde VLC
@@ -250,8 +256,8 @@ export class EntradaService {
         protocolo: ProtocoloSalida.SRT,
         entradaId,
         habilitada: true,
-        urlDestino: `srt://localhost:8890?streamid=read:${pathName}`,
-        puertoSRT: 8890,
+        urlDestino: `srt://${serverIp}:${srtPort}?streamid=read:${pathName}`,
+        puertoSRT: parseInt(srtPort),
         latenciaSRT: 40,
       });
 
@@ -261,7 +267,7 @@ export class EntradaService {
         protocolo: ProtocoloSalida.RTMP,
         entradaId,
         habilitada: true,
-        urlDestino: `rtmp://localhost:1935/${pathName}`,
+        urlDestino: `rtmp://${serverIp}:${rtmpPort}/${pathName}`,
       });
 
       this.logger.log(`📦 Outputs por defecto creados para entrada '${entrada.nombre}': HLS, SRT Pull, RTMP Pull`);

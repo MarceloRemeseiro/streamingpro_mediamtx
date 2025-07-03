@@ -5,15 +5,15 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: streamingpro_dev_db
-      POSTGRES_USER: user_streaming
-      POSTGRES_PASSWORD: password_streaming
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user_streaming -d streamingpro_dev_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,14 +27,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: streamingpro_test_db
-      POSTGRES_USER: user_streaming
-      POSTGRES_PASSWORD: password_streaming
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user_streaming -d streamingpro_test_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d streamingpro_test_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,15 +52,32 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://user_streaming:password_streaming@postgres:5432/streamingpro_dev_db?schema=public
-      - DATABASE_TEST_URL=postgresql://user_streaming:password_streaming@postgres-test:5432/streamingpro_test_db?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      - DATABASE_TEST_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-test:5432/streamingpro_test_db?schema=public
+      
       # MediaMTX Configuration (bridge networking)
       - MEDIAMTX_API_URL=http://mediamtx:9997
-      - MEDIAMTX_API_USER=admin
-      - MEDIAMTX_API_PASS=admin123
-      - MEDIAMTX_HLS_PORT=8888
-      - RTSP_PORT=8554
-      - RTMP_PORT=1935
+      - MEDIAMTX_API_USER=${MEDIAMTX_API_USER}
+      - MEDIAMTX_API_PASSWORD=${MEDIAMTX_API_PASSWORD}
+      - MEDIAMTX_HLS_BASE_URL=${MEDIAMTX_HLS_BASE_URL}
+      
+      # Security & CORS
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - FRONTEND_URL=${FRONTEND_URL}
+      
+      # Server info
+      - SERVER_IP=${SERVER_IP}
+      - SERVER_HOST=${SERVER_HOST}
+      
+      # Puertos de streaming
+      - RTMP_PORT=${RTMP_PORT}
+      - SRT_PORT=${SRT_PORT}
+      - RTSP_PORT=${RTSP_PORT}
+      - HLS_PORT=${HLS_PORT}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       # Solo montar el código fuente para hot-reload
       - ./apps/backend/src:/app/apps/backend/src:ro
@@ -84,6 +101,15 @@ services:
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
       - HOSTNAME=0.0.0.0
+      
+      # Variables públicas de Next.js para desarrollo
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_WEBSOCKET_URL=${NEXT_PUBLIC_WEBSOCKET_URL}
+      - NEXT_PUBLIC_HLS_BASE_URL=${NEXT_PUBLIC_HLS_BASE_URL}
+      - NEXT_PUBLIC_MEDIAMTX_HOST=${NEXT_PUBLIC_MEDIAMTX_HOST}
+      - NEXT_PUBLIC_HLS_PORT=${NEXT_PUBLIC_HLS_PORT}
+      - NEXT_PUBLIC_RTMP_PORT=${NEXT_PUBLIC_RTMP_PORT}
+      - NEXT_PUBLIC_SRT_PORT=${NEXT_PUBLIC_SRT_PORT}
     volumes:
       # Montar el código fuente de la app para hot-reload.
       # node_modules y .next son manejados dentro del contenedor para evitar conflictos.

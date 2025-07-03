@@ -17,7 +17,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:3000', {
+    // Usar variable de entorno o fallback para desarrollo
+    const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000';
+    
+    const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true,
@@ -27,6 +30,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     newSocket.on('connect', () => {
       console.log('✅ Socket.IO: Conectado exitosamente al servidor');
       console.log('📡 Socket ID:', newSocket.id);
+      console.log('🌐 Socket URL:', socketUrl);
     });
 
     newSocket.on('disconnect', (reason) => {

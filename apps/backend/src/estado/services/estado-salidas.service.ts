@@ -10,7 +10,7 @@ import { MediaMTXApiService } from '../../media-mtx/services/core/mediamtx-api.s
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3001'],
     credentials: true,
   },
 })
@@ -331,4 +331,4 @@ export class EstadoSalidasService {
     const outputsEspeciales = ['HLS', 'RTMP Pull', 'SRT Pull'];
     return !outputsEspeciales.includes(output.nombre);
   }
-} 
+}

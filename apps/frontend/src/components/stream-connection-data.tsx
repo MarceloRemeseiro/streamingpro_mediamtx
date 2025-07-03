@@ -27,6 +27,14 @@ export function StreamConnectionData({
   onCopyToClipboard,
   getCleanStreamId
 }: StreamConnectionDataProps) {
+  // Obtener configuración del servidor desde variables de entorno
+  const serverHost = process.env.NEXT_PUBLIC_MEDIAMTX_HOST || 'localhost';
+  const srtPort = process.env.NEXT_PUBLIC_SRT_PORT || '8890';
+  const rtmpPort = process.env.NEXT_PUBLIC_RTMP_PORT || '1935';
+  
+  const srtBaseUrl = `srt://${serverHost}:${srtPort}`;
+  const rtmpBaseUrl = `rtmp://${serverHost}:${rtmpPort}`;
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
@@ -48,13 +56,13 @@ export function StreamConnectionData({
                 <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">URL</span>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <code className="flex-1 text-sm font-mono break-all">
-                    srt://localhost
+                    {srtBaseUrl}
                   </code>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard('srt://localhost', 'URL SRT')}
+                    onClick={() => onCopyToClipboard(srtBaseUrl, 'URL SRT')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -143,13 +151,13 @@ export function StreamConnectionData({
                 <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">URL</span>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <code className="flex-1 text-sm font-mono break-all">
-                    rtmp://localhost
+                    {rtmpBaseUrl}
                   </code>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onCopyToClipboard('rtmp://localhost', 'URL RTMP')}
+                    onClick={() => onCopyToClipboard(rtmpBaseUrl, 'URL RTMP')}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -160,7 +168,7 @@ export function StreamConnectionData({
               <div className="space-y-2">
                 <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Puerto</span>
                 <div className="p-3 bg-muted rounded-lg">
-                  <span className="text-sm font-mono">1935</span>
+                  <span className="text-sm font-mono">{rtmpPort}</span>
                 </div>
               </div>
 

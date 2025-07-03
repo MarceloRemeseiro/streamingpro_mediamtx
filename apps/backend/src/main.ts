@@ -11,9 +11,13 @@ async function bootstrap() {
   // Configurar adapter de Socket.IO
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  // Habilitar CORS para permitir peticiones desde el frontend
+  // Habilitar CORS - usar variables de entorno o fallback para desarrollo
+  const corsOrigin = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',')
+    : ['http://localhost:3001', 'http://127.0.0.1:3001'];
+
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+    origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -27,8 +31,11 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(3000);
-  console.log('🚀 Backend iniciado en puerto 3000');
-  console.log('📡 WebSocket Gateway disponible en ws://localhost:3000');
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  
+  console.log('🚀 Backend iniciado en puerto', port);
+  console.log('🌐 CORS habilitado para:', corsOrigin);
+  console.log('📡 WebSocket Gateway disponible');
 }
 bootstrap();

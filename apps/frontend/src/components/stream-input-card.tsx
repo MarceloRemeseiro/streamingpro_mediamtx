@@ -151,7 +151,9 @@ export function StreamInputCard({
   const obtenerUrlConexion = () => {
     // Para SRT, construir la URL completa con todos los parámetros SIN codificación
     if (entrada.protocolo === ProtocoloStream.SRT) {
-      const baseUrl = `srt://localhost:${entrada.puertoSRT}`;
+      const serverHost = process.env.NEXT_PUBLIC_MEDIAMTX_HOST || 'localhost';
+      const srtPort = process.env.NEXT_PUBLIC_SRT_PORT || entrada.puertoSRT || '8890';
+      const baseUrl = `srt://${serverHost}:${srtPort}`;
       const params: string[] = [];
       
       // El streamId ya viene con formato "publish:HASH" desde el backend
@@ -192,13 +194,16 @@ export function StreamInputCard({
     console.warn('No se encontró una salida HLS con urlDestino en la entrada:', entrada);
     
     // Fallback: construir URL HLS basada en el protocolo de entrada
+    const serverHost = process.env.NEXT_PUBLIC_MEDIAMTX_HOST || 'localhost';
+    const hlsPort = process.env.NEXT_PUBLIC_HLS_PORT || '8888';
+    
     if (entrada.protocolo === ProtocoloStream.SRT && entrada.streamId) {
       // SRT usa path directo sin "live/"
       const streamPath = entrada.streamId.replace('publish:', '');
-      return `http://localhost:8888/${streamPath}/index.m3u8`;
+      return `http://${serverHost}:${hlsPort}/${streamPath}/index.m3u8`;
     } else if (entrada.protocolo === ProtocoloStream.RTMP && entrada.streamKey) {
       // RTMP usa "live/{streamKey}"
-      return `http://localhost:8888/live/${entrada.streamKey}/index.m3u8`;
+      return `http://${serverHost}:${hlsPort}/live/${entrada.streamKey}/index.m3u8`;
     }
     
     return null;

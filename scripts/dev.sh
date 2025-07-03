@@ -1,186 +1,74 @@
 #!/bin/bash
 
-# Script para gestionar el entorno de desarrollo de StreamingPro
+# =============================================================================
+# STREAMINGPRO - SCRIPT DE DESARROLLO
+# =============================================================================
+# Este script inicia el entorno de desarrollo con Docker Compose
+# =============================================================================
 
 set -e
 
 # Colores para output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Función para mostrar ayuda
-show_help() {
-    echo -e "${BLUE}StreamingPro - Entorno de Desarrollo${NC}"
-    echo ""
-    echo "Uso: $0 [COMANDO]"
-    echo ""
-    echo "Comandos disponibles:"
-    echo "  start       - Iniciar todos los servicios de desarrollo"
-    echo "  stop        - Parar todos los servicios"
-    echo "  restart     - Reiniciar todos los servicios"
-    echo "  logs        - Mostrar logs de todos los servicios"
-    echo "  logs [srv]  - Mostrar logs de un servicio específico (backend, frontend, mediamtx, postgres)"
-    echo "  build       - Construir las imágenes de desarrollo"
-    echo "  clean       - Limpiar volúmenes y contenedores"
-    echo "  shell [srv] - Abrir shell en un servicio (backend, frontend, mediamtx)"
-    echo "  test        - Ejecutar tests del backend"
-    echo "  status      - Mostrar estado de los servicios"
-    echo "  help        - Mostrar esta ayuda"
-    echo ""
-}
+echo -e "${BLUE}🚀 StreamingPro - Iniciando entorno de desarrollo...${NC}"
 
-# Función para crear directorios necesarios
-create_directories() {
-    echo -e "${YELLOW}Creando directorios necesarios...${NC}"
-    mkdir -p logs/backend
-    mkdir -p logs/frontend
-    mkdir -p logs/mediamtx
-    echo -e "${GREEN}Directorios creados.${NC}"
-}
+# Verificar que estamos en el directorio correcto
+if [ ! -f "docker-compose.dev.yml" ]; then
+    echo -e "${YELLOW}⚠️ Error: docker-compose.dev.yml no encontrado${NC}"
+    echo "Ejecuta este script desde la raíz del proyecto"
+    exit 1
+fi
 
-# Función para iniciar servicios
-start_services() {
-    echo -e "${YELLOW}Iniciando servicios de desarrollo...${NC}"
-    create_directories
-    docker-compose -f docker-compose.dev.yml up -d
-    echo -e "${GREEN}Servicios iniciados.${NC}"
-    echo ""
-    echo -e "${BLUE}URLs disponibles:${NC}"
-    echo "  Frontend:    http://localhost:3001"
-    echo "  Backend API: http://localhost:3000"
-    echo "  MediaMTX API: http://localhost:9997"
-    echo "  MediaMTX HLS: http://localhost:8888"
-    echo "  MediaMTX WebRTC: http://localhost:8889"
-    echo "  PostgreSQL:  localhost:5432"
-    echo ""
-}
-
-# Función para parar servicios
-stop_services() {
-    echo -e "${YELLOW}Parando servicios...${NC}"
-    docker-compose -f docker-compose.dev.yml down
-    echo -e "${GREEN}Servicios parados.${NC}"
-}
-
-# Función para reiniciar servicios
-restart_services() {
-    echo -e "${YELLOW}Reiniciando servicios...${NC}"
-    docker-compose -f docker-compose.dev.yml restart
-    echo -e "${GREEN}Servicios reiniciados.${NC}"
-}
-
-# Función para mostrar logs
-show_logs() {
-    if [ -z "$1" ]; then
-        docker-compose -f docker-compose.dev.yml logs -f
-    else
-        case $1 in
-            backend)
-                docker-compose -f docker-compose.dev.yml logs -f backend
-                ;;
-            frontend)
-                docker-compose -f docker-compose.dev.yml logs -f frontend
-                ;;
-            mediamtx)
-                docker-compose -f docker-compose.dev.yml logs -f mediamtx
-                ;;
-            postgres)
-                docker-compose -f docker-compose.dev.yml logs -f postgres
-                ;;
-            *)
-                echo -e "${RED}Servicio no reconocido: $1${NC}"
-                echo "Servicios disponibles: backend, frontend, mediamtx, postgres"
-                exit 1
-                ;;
-        esac
-    fi
-}
-
-# Función para construir imágenes
-build_images() {
-    echo -e "${YELLOW}Construyendo imágenes de desarrollo...${NC}"
-    docker-compose -f docker-compose.dev.yml build --no-cache
-    echo -e "${GREEN}Imágenes construidas.${NC}"
-}
-
-# Función para limpiar
-clean_environment() {
-    echo -e "${YELLOW}Limpiando entorno...${NC}"
-    docker-compose -f docker-compose.dev.yml down -v --remove-orphans
-    docker system prune -f
-    echo -e "${GREEN}Entorno limpiado.${NC}"
-}
-
-# Función para abrir shell
-open_shell() {
-    if [ -z "$1" ]; then
-        echo -e "${RED}Especifica un servicio: backend, frontend, mediamtx${NC}"
-        exit 1
-    fi
+# Verificar si existe archivo de entorno para desarrollo
+if [ ! -f ".env.development" ]; then
+    echo -e "${YELLOW}⚠️ Archivo .env.development no encontrado${NC}"
+    echo "Creando desde template..."
     
-    case $1 in
-        backend)
-            docker-compose -f docker-compose.dev.yml exec backend /bin/bash
-            ;;
-        frontend)
-            docker-compose -f docker-compose.dev.yml exec frontend /bin/bash
-            ;;
-        mediamtx)
-            docker-compose -f docker-compose.dev.yml exec mediamtx /bin/bash
-            ;;
-        *)
-            echo -e "${RED}Servicio no reconocido: $1${NC}"
-            echo "Servicios disponibles: backend, frontend, mediamtx"
-            exit 1
-            ;;
-    esac
-}
+    if [ -f "env.development.template" ]; then
+        cp env.development.template .env.development
+        echo -e "${GREEN}✅ Archivo .env.development creado desde template${NC}"
+    else
+        echo -e "${YELLOW}⚠️ No se encontró env.development.template${NC}"
+        echo "Continuando con variables por defecto..."
+    fi
+fi
 
-# Función para ejecutar tests
-run_tests() {
-    echo -e "${YELLOW}Ejecutando tests del backend...${NC}"
-    docker-compose -f docker-compose.dev.yml exec backend pnpm run test
-}
+# Parar servicios existentes si los hay
+echo -e "${BLUE}🛑 Parando servicios existentes...${NC}"
+docker-compose -f docker-compose.dev.yml --env-file .env.development down --remove-orphans 2>/dev/null || true
 
-# Función para mostrar estado
-show_status() {
-    echo -e "${BLUE}Estado de los servicios:${NC}"
-    docker-compose -f docker-compose.dev.yml ps
-}
+# Construir imágenes
+echo -e "${BLUE}🏗️ Construyendo imágenes...${NC}"
+docker-compose -f docker-compose.dev.yml --env-file .env.development build
 
-# Procesar argumentos
-case "${1:-help}" in
-    start)
-        start_services
-        ;;
-    stop)
-        stop_services
-        ;;
-    restart)
-        restart_services
-        ;;
-    logs)
-        show_logs "$2"
-        ;;
-    build)
-        build_images
-        ;;
-    clean)
-        clean_environment
-        ;;
-    shell)
-        open_shell "$2"
-        ;;
-    test)
-        run_tests
-        ;;
-    status)
-        show_status
-        ;;
-    help|*)
-        show_help
-        ;;
-esac 
+# Levantar servicios
+echo -e "${BLUE}🚀 Levantando servicios...${NC}"
+docker-compose -f docker-compose.dev.yml --env-file .env.development up -d
+
+# Mostrar logs por unos segundos
+echo -e "${BLUE}📋 Mostrando logs iniciales...${NC}"
+sleep 3
+docker-compose -f docker-compose.dev.yml --env-file .env.development logs --tail=20
+
+echo ""
+echo -e "${GREEN}✅ Entorno de desarrollo iniciado${NC}"
+echo ""
+echo "🌐 URLs de acceso:"
+echo "   Frontend:  http://localhost:3001"
+echo "   Backend:   http://localhost:3000"
+echo "   Postgres:  localhost:5432"
+echo ""
+echo "📡 Puertos de streaming:"
+echo "   SRT:       localhost:8890"
+echo "   RTMP:      localhost:1935"
+echo "   HLS:       http://localhost:8888"
+echo ""
+echo "🔧 Comandos útiles:"
+echo "   Ver logs:         docker-compose -f docker-compose.dev.yml logs -f"
+echo "   Parar servicios:  docker-compose -f docker-compose.dev.yml down"
+echo "   Reiniciar:        ./scripts/dev.sh"
+echo "" 
