@@ -125,7 +125,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8554:8554"    # RTSP TCP
-      - "8000:8000/udp" # RTSP UDP RTP
+      - "8002:8000/udp" # RTSP UDP RTP (cambio para evitar conflicto con Portainer)
       - "8001:8001/udp" # RTSP UDP RTCP
       - "1935:1935"    # RTMP
       - "8888:8888"    # HLS

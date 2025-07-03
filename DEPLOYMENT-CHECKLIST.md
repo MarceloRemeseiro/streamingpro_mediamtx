@@ -20,6 +20,7 @@ Lista de verificación rápida para asegurar un deployment exitoso en producció
   - [ ] `8888/tcp` - HLS (proxy interno)
   - [ ] `8889/tcp` - WebRTC
   - [ ] `8189/udp` - WebRTC ICE
+  - [ ] `8002/udp` - RTSP UDP RTP (cambio para evitar conflicto con Portainer)
 - [ ] IP pública del servidor conocida
 - [ ] Conectividad UDP verificada (`nc -zuv TU_IP 8890`)
 - [ ] Dominio `central.streamingpro.es` apunta a la IP del servidor
