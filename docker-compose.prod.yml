@@ -38,7 +38,7 @@ services:
       PORT: 3000
       
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       
       # MediaMTX
       MEDIAMTX_API_URL: http://mediamtx:9997

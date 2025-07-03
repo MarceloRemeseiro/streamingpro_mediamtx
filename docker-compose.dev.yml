@@ -52,8 +52,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-      - DATABASE_TEST_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-test:5432/streamingpro_test_db?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&sslmode=disable
+      - DATABASE_TEST_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-test:5432/streamingpro_test_db?schema=public&sslmode=disable
       
       # MediaMTX Configuration (bridge networking)
       - MEDIAMTX_API_URL=http://mediamtx:9997
