@@ -11,6 +11,9 @@ async function bootstrap() {
   // Configurar adapter de Socket.IO
   app.useWebSocketAdapter(new IoAdapter(app));
 
+  // Configurar global prefix para todas las rutas HTTP
+  app.setGlobalPrefix('api');
+
   // Habilitar CORS - usar variables de entorno o fallback para desarrollo
   const corsOrigin = process.env.CORS_ORIGIN 
     ? process.env.CORS_ORIGIN.split(',')
@@ -37,5 +40,6 @@ async function bootstrap() {
   console.log('🚀 Backend iniciado en puerto', port);
   console.log('🌐 CORS habilitado para:', corsOrigin);
   console.log('📡 WebSocket Gateway disponible');
+  console.log('🔗 API disponible en: /api/*');
 }
 bootstrap();
