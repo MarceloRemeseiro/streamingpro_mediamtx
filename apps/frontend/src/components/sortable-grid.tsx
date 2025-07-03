@@ -44,15 +44,10 @@ function SortableItem({ id, children }: SortableItemProps) {
     zIndex: isDragging ? 10 : 'auto',
     opacity: isDragging ? 0.7 : 1,
   };
-  
-  const combinedListeners = {
-    ...attributes,
-    ...listeners,
-  };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      {children(combinedListeners, isDragging)}
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(listeners, isDragging)}
     </div>
   );
 }
