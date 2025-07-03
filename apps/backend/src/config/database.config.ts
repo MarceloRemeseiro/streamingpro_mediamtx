@@ -23,6 +23,6 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
     synchronize: process.env.NODE_ENV === 'development', // Solo sincronizar en desarrollo
     dropSchema: false, // NUNCA borrar el esquema automáticamente
     logging: process.env.NODE_ENV === 'development',
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: false, // SSL deshabilitado para contenedores Docker
   };
 }; 
