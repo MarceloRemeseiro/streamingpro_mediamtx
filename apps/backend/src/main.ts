@@ -35,11 +35,12 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');  // Escuchar en todas las interfaces
   
   console.log('🚀 Backend iniciado en puerto', port);
   console.log('🌐 CORS habilitado para:', corsOrigin);
   console.log('📡 WebSocket Gateway disponible');
   console.log('🔗 API disponible en: /api/*');
+  console.log('🔗 Escuchando en: 0.0.0.0:' + port);
 }
 bootstrap();
