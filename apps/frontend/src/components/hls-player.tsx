@@ -28,7 +28,7 @@ export function HLSPlayer({
   const [isMuted, setIsMuted] = useState(muted);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(false);
+
   const [isRecovering, setIsRecovering] = useState(false);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'offline' | 'error'>('connecting');
   const [retryCount, setRetryCount] = useState(0);
@@ -108,7 +108,7 @@ export function HLSPlayer({
         setIsRecovering(false);
         setError(null);
         setStreamStatus('live');
-        setIsLive(hls.liveSyncPosition !== undefined);
+
         setRetryCount(0);
         setHasConnectedBefore(true);
         
@@ -187,7 +187,7 @@ export function HLSPlayer({
                   hls.recoverMediaError();
                   console.log('🔄 Recuperando error de media...');
                   setTimeout(() => setIsRecovering(false), 5000);
-                } catch (e) {
+                } catch {
                   setError('Error de formato de video');
                   setStreamStatus('error');
                   setIsLoading(false);
@@ -247,7 +247,7 @@ export function HLSPlayer({
             case 'bufferAppendingError':
               try {
                 hls.recoverMediaError();
-              } catch (e) {
+              } catch {
                 retryTimeoutRef.current = setTimeout(() => {
                   if (hlsRef.current) {
                     hlsRef.current.startLoad();
@@ -310,6 +310,7 @@ export function HLSPlayer({
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('volumechange', handleVolumeChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, autoPlay]);
 
   const handleRetry = () => {

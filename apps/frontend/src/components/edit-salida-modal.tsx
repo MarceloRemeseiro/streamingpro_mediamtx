@@ -23,13 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Input } from "@/components/ui/input";
 
 import { ProtocoloSalida, type SalidaStream } from "@/types/streaming";
@@ -81,10 +75,21 @@ export function EditSalidaModal({ salida, onSalidaActualizada, trigger }: EditSa
       setIsLoading(true);
       
       // Limpiar campos según protocolo
-      const datosLimpios: any = {
+      const datosLimpios = {
         nombre: data.nombre,
         urlDestino: data.urlDestino,
         habilitada: salida.habilitada, // Mantener el estado actual
+      } as { 
+        nombre: string; 
+        urlDestino: string; 
+        habilitada: boolean; 
+        claveStreamRTMP?: string;
+        puertoSRT?: number;
+        latenciaSRT?: number;
+        passphraseSRT?: string;
+        streamIdSRT?: string;
+        segmentDuration?: number;
+        playlistLength?: number;
       };
 
       // Agregar campos específicos por protocolo (usar el protocolo de la salida existente)
@@ -126,7 +131,7 @@ export function EditSalidaModal({ salida, onSalidaActualizada, trigger }: EditSa
         <DialogHeader>
           <DialogTitle>Editar Output</DialogTitle>
           <DialogDescription>
-            Modifica la configuración del output "{salida.nombre}".
+            Modifica la configuración del output &quot;{salida.nombre}&quot;.
           </DialogDescription>
         </DialogHeader>
 

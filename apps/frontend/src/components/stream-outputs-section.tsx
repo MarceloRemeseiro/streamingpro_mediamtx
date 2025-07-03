@@ -19,7 +19,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2 } from 'lucide-react';
+
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,6 @@ import { DeleteSalidaConfirm } from './delete-salida-confirm';
 import { CreateSalidaModal } from './create-salida-modal';
 import { useCopyToClipboard } from '@/lib/use-copy-to-clipboard';
 import { SortableGrid } from './sortable-grid';
-import { Switch } from '@/components/ui/switch';
 import { CustomOutputCard } from './custom-output-card';
 
 interface StreamOutputsSectionProps {
@@ -52,7 +51,7 @@ interface StreamOutputsSectionProps {
   showCreateButton?: boolean;
   isDefaultOutputs?: boolean;
   onDeleteOutput?: (id: string) => void;
-  isUpdating?: boolean;
+
   deviceStats?: { total: number; hls: number; srt: number; rtmp: number };
 }
 
@@ -111,7 +110,6 @@ export function StreamOutputsSection({
   showCreateButton = false,
   isDefaultOutputs = false,
   onDeleteOutput,
-  isUpdating,
   deviceStats,
 }: StreamOutputsSectionProps) {
   const { copyToClipboard } = useCopyToClipboard();

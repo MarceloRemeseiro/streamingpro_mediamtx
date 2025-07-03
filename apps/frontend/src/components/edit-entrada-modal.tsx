@@ -59,9 +59,9 @@ export function EditEntradaModal({ entrada, onEntradaActualizada, trigger }: Edi
     try {
       setIsLoading(true);
       
-      const datosActualizacion: any = {
+      const datosActualizacion = {
         nombre: data.nombre,
-      };
+      } as { nombre: string; latenciaSRT?: number };
 
       // Solo para SRT agregar latencia si cambió
       if (entrada.protocolo === ProtocoloStream.SRT && data.latenciaSRT) {
@@ -94,7 +94,7 @@ export function EditEntradaModal({ entrada, onEntradaActualizada, trigger }: Edi
         <DialogHeader>
           <DialogTitle>Editar Entrada de Streaming</DialogTitle>
           <DialogDescription>
-            Modifica la configuración de la entrada "{entrada.nombre}".
+            Modifica la configuración de la entrada &quot;{entrada.nombre}&quot;.
           </DialogDescription>
         </DialogHeader>
 

@@ -12,10 +12,8 @@ import { Button } from '@/components/ui/button';
 import {
   Radio,
   Settings2,
-  Plus,
   Trash2,
   Edit,
-  GripVertical,
   Minus
 } from 'lucide-react';
 import { EntradaStream, ProtocoloStream, SalidaStream, EstadisticasDispositivos } from '@/types/streaming';
@@ -139,14 +137,7 @@ export function StreamInputCard({
     return streamId.replace('#!::r=', '').replace(',m=publish', '');
   };
 
-  // Función de debug temporal
-  const mostrarDebugInfo = () => {
-    console.log('=== DEBUG INFO ===');
-    console.log('Entrada completa:', entrada);
-    console.log('URL de conexión:', obtenerUrlConexion());
-    console.log('URL de video:', obtenerUrlHLS());
-    console.log('==================');
-  };
+
 
   const obtenerUrlConexion = () => {
     // Para SRT, construir la URL completa con todos los parámetros SIN codificación

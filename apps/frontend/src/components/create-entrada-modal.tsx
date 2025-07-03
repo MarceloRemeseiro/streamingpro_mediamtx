@@ -108,13 +108,10 @@ export function CreateEntradaModal({ onEntradaCreada, trigger }: CreateEntradaMo
       onEntradaCreada();
       setOpen(false);
       form.reset();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear la entrada:', error);
-      if (error.response?.data?.message) {
-        toast.error(`Error: ${error.response.data.message}`);
-      } else {
-        toast.error('No se pudo crear la entrada.');
-      }
+      const errorMessage = error instanceof Error ? error.message : 'No se pudo crear la entrada.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

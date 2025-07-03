@@ -45,7 +45,7 @@ export const useCopyToClipboard = () => {
         } else {
           throw new Error('Fallback copy failed');
         }
-      } catch (fallbackError) {
+      } catch {
         toast.error(
           'No se pudo copiar al portapapeles',
           {

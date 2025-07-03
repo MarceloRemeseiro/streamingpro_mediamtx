@@ -67,7 +67,7 @@ export function useOutputStatus({
 
     console.log(`🔍 useOutputStatus [${outputId}] - Configurando listeners WebSocket`);
 
-    const handleOutputStatusChange = (data: any) => {
+    const handleOutputStatusChange = (data: { outputId: string; estado: EstadoOutput }) => {
       console.log(`📡 useOutputStatus [${outputId}] - Evento output-status-change recibido:`, data);
       
       if (data.outputId === outputId) {
@@ -78,7 +78,7 @@ export function useOutputStatus({
       }
     };
 
-    const handleGenericUpdate = (data: any) => {
+    const handleGenericUpdate = (data: unknown) => {
       console.log(`📡 useOutputStatus [${outputId}] - Evento genérico recibido, refetch iniciado:`, data);
       refetch();
     };

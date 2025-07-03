@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 
 import { type SalidaStream } from "@/types/streaming";
-import { salidasApi } from "@/lib/api";
 
 interface DeleteSalidaConfirmProps {
   salida: SalidaStream;
@@ -47,7 +46,7 @@ export function DeleteSalidaConfirm({ salida, onSalidaEliminada, trigger }: Dele
         <DialogHeader>
           <DialogTitle>Eliminar Output</DialogTitle>
           <DialogDescription>
-            ¿Estás seguro de que quieres eliminar el output "{salida.nombre}"?
+            ¿Estás seguro de que quieres eliminar el output &quot;{salida.nombre}&quot;?
           </DialogDescription>
         </DialogHeader>
         

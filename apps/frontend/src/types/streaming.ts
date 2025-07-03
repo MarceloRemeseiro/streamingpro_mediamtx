@@ -76,6 +76,7 @@ export interface CrearSalidaDto {
   urlDestino: string;
   // Campos RTMP
   streamKey?: string;
+  claveStreamRTMP?: string; // Para compatibilidad con formularios
   // Campos SRT
   puertoSRT?: number;
   passphraseSRT?: string;

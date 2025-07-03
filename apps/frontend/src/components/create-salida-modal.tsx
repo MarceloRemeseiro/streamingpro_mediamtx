@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-import { ProtocoloSalida } from "@/types/streaming";
+import { ProtocoloSalida, CrearSalidaDto } from "@/types/streaming";
 import { crearSalidaSchema, type CrearSalidaFormData } from "@/lib/validations";
 import { salidasApi } from "@/lib/api";
 
@@ -70,7 +70,7 @@ export function CreateSalidaModal({ entradaId, onSalidaCreada, trigger }: Create
       setIsLoading(true);
       
       // Limpiar campos según protocolo
-      const datosLimpios: any = {
+      const datosLimpios = {
         nombre: data.nombre,
         protocolo: data.protocolo,
         entradaId: data.entradaId,
@@ -79,18 +79,18 @@ export function CreateSalidaModal({ entradaId, onSalidaCreada, trigger }: Create
 
       // Agregar campos específicos por protocolo
       if (data.protocolo === ProtocoloSalida.RTMP) {
-        datosLimpios.claveStreamRTMP = data.claveStreamRTMP;
+        (datosLimpios as CrearSalidaDto).claveStreamRTMP = data.claveStreamRTMP;
       } else if (data.protocolo === ProtocoloSalida.SRT) {
-        datosLimpios.puertoSRT = data.puertoSRT;
-        datosLimpios.latenciaSRT = data.latenciaSRT;
-        if (data.passphraseSRT) datosLimpios.passphraseSRT = data.passphraseSRT;
-        if (data.streamIdSRT) datosLimpios.streamIdSRT = data.streamIdSRT;
+        (datosLimpios as CrearSalidaDto).puertoSRT = data.puertoSRT;
+        (datosLimpios as CrearSalidaDto).latenciaSRT = data.latenciaSRT;
+        if (data.passphraseSRT) (datosLimpios as CrearSalidaDto).passphraseSRT = data.passphraseSRT;
+        if (data.streamIdSRT) (datosLimpios as CrearSalidaDto).streamIdSRT = data.streamIdSRT;
       } else if (data.protocolo === ProtocoloSalida.HLS) {
-        datosLimpios.segmentDuration = data.segmentDuration;
-        datosLimpios.playlistLength = data.playlistLength;
+        (datosLimpios as CrearSalidaDto).segmentDuration = data.segmentDuration;
+        (datosLimpios as CrearSalidaDto).playlistLength = data.playlistLength;
       }
 
-      await salidasApi.crear(datosLimpios);
+      await salidasApi.crear(datosLimpios as CrearSalidaDto);
       
       // Resetear formulario y cerrar modal
       form.reset();
