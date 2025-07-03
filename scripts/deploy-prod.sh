@@ -98,12 +98,16 @@ build_images() {
 }
 
 migrate_database() {
-    log "🗃️  Ejecutando migraciones de base de datos..."
+    log "🗃️  Configurando base de datos con TypeORM..."
     
-    # Esperar a que la base de datos esté lista
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend pnpm prisma migrate deploy
+    # TypeORM con synchronize: true creará las tablas automáticamente
+    # Solo necesitamos esperar a que el backend esté listo y conecte a la BD
+    log "⏳ Esperando a que TypeORM sincronice las tablas..."
     
-    success "Migraciones ejecutadas"
+    # Esperar un poco más para que TypeORM termine la sincronización
+    sleep 5
+    
+    success "Base de datos configurada con TypeORM"
 }
 
 health_check() {

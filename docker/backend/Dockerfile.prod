@@ -39,9 +39,7 @@ WORKDIR /app
 # Copiar código fuente
 COPY apps/backend ./apps/backend
 
-# Generar Prisma Client
 WORKDIR /app/apps/backend
-RUN pnpm prisma generate
 
 # Build de la aplicación
 RUN pnpm build
@@ -77,7 +75,6 @@ COPY --from=prod-deps --chown=nestjs:nestjs /app/apps/backend/node_modules ./app
 
 # Copiar aplicación compilada
 COPY --from=build --chown=nestjs:nestjs /app/apps/backend/dist ./apps/backend/dist
-COPY --from=build --chown=nestjs:nestjs /app/apps/backend/prisma ./apps/backend/prisma
 
 # Copiar archivos necesarios
 COPY --chown=nestjs:nestjs apps/backend/package.json ./apps/backend/
