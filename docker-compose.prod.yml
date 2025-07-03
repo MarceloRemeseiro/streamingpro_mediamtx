@@ -27,8 +27,8 @@ services:
   backend:
     container_name: streamingpro_backend_prod
     build:
-      context: ./apps/backend
-      dockerfile: ../../docker/backend/Dockerfile.prod
+      context: .
+      dockerfile: docker/backend/Dockerfile.prod
       target: production
     restart: unless-stopped
     ports:
@@ -85,8 +85,8 @@ services:
   frontend:
     container_name: streamingpro_frontend_prod
     build:
-      context: ./apps/frontend
-      dockerfile: ../../docker/frontend/Dockerfile.prod
+      context: .
+      dockerfile: docker/frontend/Dockerfile.prod
       target: production
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
