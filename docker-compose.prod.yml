@@ -37,9 +37,13 @@ services:
       NODE_ENV: production
       PORT: 3000
       
-      # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable&ssl=false
+      # Database - Configuración directa
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       PGSSL: false
+      PGSSLMODE: disable
+      PGCONNECT_TIMEOUT: 10
       
       # MediaMTX
       MEDIAMTX_API_URL: http://mediamtx:9997

@@ -3,22 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { EntradaStream, SalidaStream } from '../entities';
 
 export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => {
-  const databaseUrl = configService.get<string>('DATABASE_URL');
-  
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL environment variable is required');
-  }
-
-  // Parsear la URL de PostgreSQL
-  const url = new URL(databaseUrl);
-  
+  // Configuración directa sin parsear URL para evitar problemas SSL
   return {
     type: 'postgres',
-    host: url.hostname,
-    port: parseInt(url.port) || 5432,
-    username: url.username,
-    password: url.password,
-    database: url.pathname.slice(1), // Remover el '/' inicial
+    host: 'postgres',
+    port: 5432,
+    username: configService.get<string>('POSTGRES_USER'),
+    password: configService.get<string>('POSTGRES_PASSWORD'),
+    database: configService.get<string>('POSTGRES_DB'),
     entities: [EntradaStream, SalidaStream],
     synchronize: process.env.NODE_ENV === 'development', // Solo sincronizar en desarrollo
     dropSchema: false, // NUNCA borrar el esquema automáticamente
@@ -26,6 +18,7 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
     ssl: false, // SSL deshabilitado para contenedores Docker
     extra: {
       ssl: false, // Configuración adicional para deshabilitar SSL
+      sslmode: 'disable', // Parámetro adicional
     },
   };
 }; 
