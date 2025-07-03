@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # =============================================================================
-# STREAMINGPRO - SCRIPT DE DEPLOYMENT PRODUCCIÓN
+# STREAMINGPRO - SCRIPT DE DEPLOYMENT PRINCIPAL
 # =============================================================================
-# Este script automatiza el deployment en el servidor de producción
+# Script único para gestión completa del deployment en producción
+# Versión optimizada con todas las configuraciones probadas
 # =============================================================================
 
 set -e  # Salir si hay errores
@@ -13,9 +14,10 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Función de logging
+# Función de logging mejorada
 log() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
@@ -33,6 +35,10 @@ error() {
     exit 1
 }
 
+info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
 # =============================================================================
 # CONFIGURACIÓN
 # =============================================================================
@@ -40,147 +46,195 @@ error() {
 PROJECT_NAME="streamingpro-restreamer"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
+BACKUP_DIR="./backups"
+
+# Obtener IP del servidor
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # =============================================================================
 # VERIFICACIONES PREVIAS
 # =============================================================================
 
-log "🔍 Verificando requisitos previos..."
-
-# Verificar que estamos en el directorio correcto
-if [ ! -f "package.json" ] || [ ! -f "$COMPOSE_FILE" ]; then
-    error "Este script debe ejecutarse desde la raíz del proyecto"
-fi
-
-# Verificar Docker
-if ! command -v docker &> /dev/null; then
-    error "Docker no está instalado"
-fi
-
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    error "Docker Compose no está instalado"
-fi
-
-# Verificar archivo de entorno
-if [ ! -f "$ENV_FILE" ]; then
-    error "Archivo $ENV_FILE no encontrado. Copia env.production.template como $ENV_FILE y configúralo"
-fi
-
-success "Verificaciones previas completadas"
+check_requirements() {
+    log "🔍 Verificando requisitos previos..."
+    
+    # Verificar que estamos en el directorio correcto
+    if [ ! -f "package.json" ] || [ ! -f "$COMPOSE_FILE" ]; then
+        error "Este script debe ejecutarse desde la raíz del proyecto StreamingPro"
+    fi
+    
+    # Verificar Docker
+    if ! command -v docker &> /dev/null; then
+        error "Docker no está instalado. Instala Docker primero."
+    fi
+    
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+        error "Docker Compose no está instalado"
+    fi
+    
+    # Verificar archivo de entorno
+    if [ ! -f "$ENV_FILE" ]; then
+        error "Archivo $ENV_FILE no encontrado. Copia env.production.READY como $ENV_FILE y configúralo"
+    fi
+    
+    # Verificar variables críticas
+    source "$ENV_FILE"
+    if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ] || [ -z "$POSTGRES_DB" ]; then
+        error "Variables de base de datos no configuradas en $ENV_FILE"
+    fi
+    
+    success "Verificaciones previas completadas"
+}
 
 # =============================================================================
-# FUNCIONES
+# FUNCIONES DE GESTIÓN
 # =============================================================================
 
 backup_database() {
     log "📦 Creando backup de la base de datos..."
     
-    mkdir -p ./backups
+    mkdir -p "$BACKUP_DIR"
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_FILE="./backups/backup_${TIMESTAMP}.sql"
+    BACKUP_FILE="$BACKUP_DIR/backup_${TIMESTAMP}.sql"
     
     # Solo hacer backup si hay contenedor de postgres corriendo
     if docker ps --filter "name=streamingpro_postgres_prod" --format "table {{.Names}}" | grep -q streamingpro_postgres_prod; then
-        docker exec streamingpro_postgres_prod pg_dump -U ${POSTGRES_USER:-streamingpro_user} ${POSTGRES_DB:-streamingpro_production} > "$BACKUP_FILE"
+        source "$ENV_FILE"
+        docker exec streamingpro_postgres_prod pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > "$BACKUP_FILE"
         success "Backup creado: $BACKUP_FILE"
     else
         warning "No hay base de datos ejecutándose, saltando backup"
     fi
 }
 
+clean_docker_resources() {
+    log "🧹 Limpiando recursos Docker obsoletos..."
+    
+    # Parar y remover contenedores del proyecto
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans
+    
+    # Limpiar imágenes del proyecto
+    docker images | grep "streamingpro" | awk '{print $3}' | xargs -r docker rmi -f
+    
+    # Limpiar volumes huérfanos (solo los del proyecto)
+    docker volume ls | grep "streamingpro" | awk '{print $2}' | xargs -r docker volume rm
+    
+    success "Recursos Docker limpiados"
+}
+
 build_images() {
     log "🏗️  Construyendo imágenes Docker..."
     
-    # Build con cache para optimizar tiempo
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --parallel
+    # Build con --no-cache para asegurar imagen limpia
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache --parallel
     
     success "Imágenes construidas exitosamente"
 }
 
-migrate_database() {
-    log "🗃️  Configurando base de datos con TypeORM..."
+start_services() {
+    log "🚀 Iniciando servicios..."
     
-    # TypeORM con synchronize: true creará las tablas automáticamente
-    # Solo necesitamos esperar a que el backend esté listo y conecte a la BD
-    log "⏳ Esperando a que TypeORM sincronice las tablas..."
+    # Levantar servicios en orden correcto
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
     
-    # Esperar un poco más para que TypeORM termine la sincronización
-    sleep 5
+    log "⏳ Esperando a que los servicios estén listos..."
+    sleep 15
     
-    success "Base de datos configurada con TypeORM"
+    success "Servicios iniciados"
+}
+
+wait_for_services() {
+    log "⏳ Esperando a que todos los servicios estén healthy..."
+    
+    local max_attempts=20
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        local backend_healthy=$(docker inspect streamingpro_backend_prod --format='{{.State.Health.Status}}' 2>/dev/null || echo "starting")
+        local postgres_healthy=$(docker inspect streamingpro_postgres_prod --format='{{.State.Health.Status}}' 2>/dev/null || echo "starting")
+        local mediamtx_healthy=$(docker inspect streamingpro_mediamtx_prod --format='{{.State.Health.Status}}' 2>/dev/null || echo "starting")
+        
+        if [[ "$backend_healthy" == "healthy" && "$postgres_healthy" == "healthy" && "$mediamtx_healthy" == "healthy" ]]; then
+            success "Todos los servicios están healthy"
+            return 0
+        fi
+        
+        info "Esperando servicios... Backend: $backend_healthy, Postgres: $postgres_healthy, MediaMTX: $mediamtx_healthy"
+        sleep 5
+        ((attempt++))
+    done
+    
+    warning "Algunos servicios pueden no estar completamente listos. Continuando..."
 }
 
 health_check() {
     log "🔍 Verificando salud de los servicios..."
     
-    # Esperar un poco para que los servicios se inicialicen
-    sleep 10
-    
-    # Verificar backend
-    if curl -f http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
-        success "Backend está funcionando"
+    # Verificar backend (usar 127.0.0.1 para IPv4)
+    if curl -f -s http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
+        success "Backend está funcionando correctamente"
     else
-        warning "Backend no responde en el health check"
+        warning "Backend no responde en health check"
+        info "Verificando logs del backend..."
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs backend --tail=10
     fi
     
     # Verificar MediaMTX
-    if curl -f http://localhost:9997/v3/config/global/get > /dev/null 2>&1; then
-        success "MediaMTX está funcionando"
+    if curl -f -s http://127.0.0.1:9997/v3/config/global/get > /dev/null 2>&1; then
+        success "MediaMTX está funcionando correctamente"
     else
         warning "MediaMTX no responde"
     fi
     
     # Verificar frontend
-    if curl -f http://localhost:3001 > /dev/null 2>&1; then
-        success "Frontend está funcionando"
+    if curl -f -s http://127.0.0.1:3001 > /dev/null 2>&1; then
+        success "Frontend está funcionando correctamente"
     else
         warning "Frontend no responde"
     fi
+    
+    # Mostrar estado de contenedores
+    log "📊 Estado de contenedores:"
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
 }
 
-show_info() {
-    log "📋 Información del deployment:"
+show_system_info() {
+    log "📋 Información del sistema StreamingPro:"
     echo ""
     echo "🌐 URLs de acceso:"
-    echo "   Frontend: http://$(hostname -I | awk '{print $1}'):3001"
-    echo "   Backend:  http://$(hostname -I | awk '{print $1}'):3000/api"
+    echo "   Frontend: http://$SERVER_IP:3001"
+    echo "   Backend:  http://$SERVER_IP:3000/api"
+    echo "   Health:   http://$SERVER_IP:3000/api/health"
     echo ""
     echo "📡 Puertos de streaming:"
-    echo "   SRT:      $(hostname -I | awk '{print $1}'):8890"
-    echo "   RTMP:     $(hostname -I | awk '{print $1}'):1935"
-    echo "   HLS:      http://$(hostname -I | awk '{print $1}'):8888"
-    echo "   WebRTC:   http://$(hostname -I | awk '{print $1}'):8889"
+    echo "   SRT:      srt://$SERVER_IP:8890"
+    echo "   RTMP:     rtmp://$SERVER_IP:1935"
+    echo "   RTSP:     rtsp://$SERVER_IP:8554"
+    echo "   HLS:      http://$SERVER_IP:8888"
+    echo "   WebRTC:   http://$SERVER_IP:8889"
     echo ""
     echo "🔧 Comandos útiles:"
-    echo "   Ver logs:        docker-compose -f $COMPOSE_FILE logs -f"
-    echo "   Parar servicios: docker-compose -f $COMPOSE_FILE down"
+    echo "   Ver logs:        docker-compose -f $COMPOSE_FILE --env-file $ENV_FILE logs -f"
+    echo "   Parar servicios: docker-compose -f $COMPOSE_FILE --env-file $ENV_FILE down"
+    echo "   Estado:          docker-compose -f $COMPOSE_FILE --env-file $ENV_FILE ps"
     echo "   Reiniciar:       ./scripts/deploy-prod.sh"
     echo ""
-    echo "🌐 Configurar Nginx Proxy Manager:"
-    echo "   Consulta: NGINX-PROXY-MANAGER-SETUP.md"
+    echo "📁 Archivos importantes:"
+    echo "   Configuración:   $ENV_FILE"
+    echo "   Docker Compose:  $COMPOSE_FILE"
+    echo "   Backups:         $BACKUP_DIR/"
     echo ""
 }
 
-# =============================================================================
-# MENÚ PRINCIPAL
-# =============================================================================
+show_logs() {
+    log "📝 Mostrando logs en vivo (Ctrl+C para salir)..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
+}
 
-show_menu() {
-    echo ""
-    echo "🚀 StreamingPro - Deployment Producción"
-    echo "========================================="
-    echo ""
-    echo "1) 🆕 Deployment completo (nuevo)"
-    echo "2) 🔄 Actualizar aplicación (mantener DB)"
-    echo "3) 📦 Solo backup de base de datos"
-    echo "4) 🏗️  Solo construir imágenes"
-    echo "5) 🔍 Verificar estado de servicios"
-    echo "6) 📋 Mostrar información del sistema"
-    echo "7) 🛑 Parar todos los servicios"
-    echo "8) 📝 Ver logs en vivo"
-    echo "9) ❌ Salir"
-    echo ""
-    read -p "Selecciona una opción [1-9]: " choice
+stop_services() {
+    log "🛑 Parando todos los servicios..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
+    success "Servicios detenidos"
 }
 
 # =============================================================================
@@ -190,80 +244,123 @@ show_menu() {
 full_deployment() {
     log "🚀 Iniciando deployment completo..."
     
-    # Parar servicios existentes si los hay
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
-    
-    # Backup si hay datos
+    check_requirements
     backup_database
-    
-    # Construir imágenes
+    clean_docker_resources
     build_images
-    
-    # Levantar servicios
-    log "🚀 Levantando servicios..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
-    
-    # Esperar a que la base de datos esté lista
-    log "⏳ Esperando a que la base de datos esté lista..."
-    sleep 15
-    
-    # Migrar base de datos
-    migrate_database
-    
-    # Verificar servicios
+    start_services
+    wait_for_services
     health_check
-    
-    # Mostrar información
-    show_info
+    show_system_info
     
     success "🎉 Deployment completo exitoso!"
 }
 
-update_deployment() {
-    log "🔄 Actualizando aplicación..."
+quick_update() {
+    log "🔄 Actualizando aplicación (update rápido)..."
     
-    # Backup antes de actualizar
+    check_requirements
     backup_database
     
-    # Construir nuevas imágenes
-    build_images
+    # Solo rebuild y restart de backend y frontend
+    log "🏗️  Rebuilding solo backend y frontend..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache backend frontend
     
-    # Actualizar servicios (mantener base de datos)
-    log "🔄 Actualizando servicios..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps backend frontend mediamtx
+    log "🔄 Reiniciando servicios..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps backend frontend
     
-    # Migrar base de datos por si hay cambios
-    sleep 10
-    migrate_database
-    
-    # Verificar servicios
+    wait_for_services
     health_check
     
     success "🎉 Actualización completada!"
 }
 
-stop_services() {
-    log "🛑 Parando todos los servicios..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
-    success "Servicios detenidos"
-}
-
-show_logs() {
-    log "📝 Mostrando logs en vivo (Ctrl+C para salir)..."
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
-}
-
-check_status() {
-    log "🔍 Estado de los servicios:"
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
-    echo ""
+clean_deployment() {
+    log "🧹 Deployment con limpieza completa..."
+    
+    check_requirements
+    backup_database
+    
+    # Limpieza más agresiva
+    log "🧹 Limpieza completa de Docker..."
+    docker system prune -f
+    clean_docker_resources
+    
+    build_images
+    start_services
+    wait_for_services
     health_check
+    show_system_info
+    
+    success "🎉 Deployment con limpieza completo!"
 }
 
 # =============================================================================
-# EJECUTAR MENÚ
+# MENÚ PRINCIPAL
 # =============================================================================
 
+show_menu() {
+    echo ""
+    echo "🚀 StreamingPro - Gestión de Deployment"
+    echo "======================================="
+    echo ""
+    echo "1) 🚀 Deployment completo (recomendado)"
+    echo "2) 🔄 Update rápido (solo backend/frontend)"
+    echo "3) 🧹 Deployment con limpieza completa"
+    echo "4) 📦 Solo backup de base de datos"
+    echo "5) 🔍 Verificar estado de servicios"
+    echo "6) 📋 Mostrar información del sistema"
+    echo "7) 📝 Ver logs en vivo"
+    echo "8) 🛑 Parar todos los servicios"
+    echo "9) ❌ Salir"
+    echo ""
+    read -p "Selecciona una opción [1-9]: " choice
+}
+
+# =============================================================================
+# EJECUCIÓN PRINCIPAL
+# =============================================================================
+
+# Si se pasa un argumento, ejecutar directamente
+if [ $# -eq 1 ]; then
+    case $1 in
+        "deploy"|"full")
+            full_deployment
+            exit 0
+            ;;
+        "update"|"quick")
+            quick_update
+            exit 0
+            ;;
+        "clean")
+            clean_deployment
+            exit 0
+            ;;
+        "status")
+            check_requirements
+            health_check
+            exit 0
+            ;;
+        "stop")
+            stop_services
+            exit 0
+            ;;
+        "logs")
+            show_logs
+            exit 0
+            ;;
+        "info")
+            show_system_info
+            exit 0
+            ;;
+        *)
+            echo "Uso: $0 [deploy|update|clean|status|stop|logs|info]"
+            exit 1
+            ;;
+    esac
+fi
+
+# Mostrar menú interactivo
 while true; do
     show_menu
     
@@ -272,25 +369,26 @@ while true; do
             full_deployment
             ;;
         2)
-            update_deployment
+            quick_update
             ;;
         3)
-            backup_database
+            clean_deployment
             ;;
         4)
-            build_images
+            backup_database
             ;;
         5)
-            check_status
+            check_requirements
+            health_check
             ;;
         6)
-            show_info
+            show_system_info
             ;;
         7)
-            stop_services
+            show_logs
             ;;
         8)
-            show_logs
+            stop_services
             ;;
         9)
             log "👋 ¡Hasta luego!"
