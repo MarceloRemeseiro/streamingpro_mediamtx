@@ -75,6 +75,9 @@ services:
       MTX_CONN_TYPE: ${MTX_CONN_TYPE}
       MTX_CONN_ID: ${MTX_CONN_ID}
       
+      # Variable para forzar sincronización de TypeORM
+      TYPEORM_SYNC: ${TYPEORM_SYNC}
+      
     volumes:
       - backend_logs:/app/logs
     depends_on:
