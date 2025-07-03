@@ -117,7 +117,7 @@ health_check() {
     sleep 10
     
     # Verificar backend
-    if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+    if curl -f http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
         success "Backend está funcionando"
     else
         warning "Backend no responde en el health check"
