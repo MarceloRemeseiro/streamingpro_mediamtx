@@ -24,5 +24,8 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
     dropSchema: false, // NUNCA borrar el esquema automáticamente
     logging: process.env.NODE_ENV === 'development',
     ssl: false, // SSL deshabilitado para contenedores Docker
+    extra: {
+      ssl: false, // Configuración adicional para deshabilitar SSL
+    },
   };
 }; 
