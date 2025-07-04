@@ -1,0 +1,50 @@
+# =============================================================================
+# COMANDOS PARA PRUEBAS MANUALES DE PUERTOS UDP
+# =============================================================================
+# Ejecuta estos comandos en tu servidor para probar puertos UDP
+# =============================================================================
+
+# 1. Verificar qué servicios están escuchando en puertos UDP
+sudo ss -ulnp | grep -E "(8890|8000|8001|8189)"
+sudo netstat -ulnp | grep -E "(8890|8000|8001|8189)"
+
+# 2. Probar puertos UDP con nmap (desde otro servidor)
+nmap -sU -p 8890,8000,8001,8189 85.10.196.133
+
+# 3. Probar puertos UDP con netcat
+# En el servidor (abrir puerto para escuchar):
+nc -ul 8890
+
+# Desde otro servidor (enviar datos):
+echo "test" | nc -u 85.10.196.133 8890
+
+# 4. Probar con hping3
+hping3 -2 -p 8890 -c 3 85.10.196.133
+
+# 5. Verificar logs de MediaMTX
+docker logs streamingpro_mediamtx_prod --tail=50
+
+# 6. Verificar configuración de MediaMTX
+curl -s http://localhost:9997/v3/config/global/get | jq '.'
+
+# 7. Verificar paths activos
+curl -s http://localhost:9997/v3/paths/list | jq '.'
+
+# 8. Probar firewall local (en el servidor)
+sudo ufw status
+sudo iptables -L -n | grep -E "(8890|8000|8001|8189)"
+
+# 9. Probar con telnet (TCP)
+telnet 85.10.196.133 1935
+telnet 85.10.196.133 8888
+
+# 10. Verificar procesos
+ps aux | grep -E "(mediamtx|nginx|streamingpro)"
+
+# =============================================================================
+# NOTAS:
+# - Reemplaza 85.10.196.133 con tu IP real
+# - Algunos comandos requieren sudo
+# - Los puertos UDP son más difíciles de probar que TCP
+# - MediaMTX debe estar corriendo para que los puertos estén abiertos
+# =============================================================================

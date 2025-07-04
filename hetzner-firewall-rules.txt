@@ -1,0 +1,148 @@
+# =============================================================================
+# REGLAS DE FIREWALL HETZNER PARA STREAMINGPRO
+# =============================================================================
+# Configura estas reglas en Robot -> Servers -> [Tu Servidor] -> Firewall
+# IMPORTANTE: Hetzner usa firewall STATELESS, necesitas reglas bidireccionales
+# =============================================================================
+
+# ===== REGLAS ENTRANTES (INCOMING) =====
+
+# 1. SSH (cambiar puerto si usas otro)
+Nombre: SSH
+Protocolo: tcp
+Puerto destino: 22
+Acción: accept
+
+# 2. HTTP/HTTPS Web
+Nombre: HTTP
+Protocolo: tcp
+Puerto destino: 80
+Acción: accept
+
+Nombre: HTTPS
+Protocolo: tcp
+Puerto destino: 443
+Acción: accept
+
+# 3. Aplicación Web (si no usas proxy)
+Nombre: Backend-API
+Protocolo: tcp
+Puerto destino: 3000
+Acción: accept
+
+Nombre: Frontend-Web
+Protocolo: tcp
+Puerto destino: 3001
+Acción: accept
+
+# 4. Protocolos de Streaming - TCP
+Nombre: RTMP-Input
+Protocolo: tcp
+Puerto destino: 1935
+Acción: accept
+
+Nombre: RTSP-TCP
+Protocolo: tcp
+Puerto destino: 8554
+Acción: accept
+
+Nombre: HLS-Streaming
+Protocolo: tcp
+Puerto destino: 8888
+Acción: accept
+
+Nombre: WebRTC-HTTP
+Protocolo: tcp
+Puerto destino: 8889
+Acción: accept
+
+# 5. Protocolos de Streaming - UDP ⭐ CRÍTICO
+Nombre: SRT-Main
+Protocolo: udp
+Puerto destino: 8890
+Acción: accept
+
+Nombre: RTSP-RTP
+Protocolo: udp
+Puerto destino: 8000
+Acción: accept
+
+Nombre: RTSP-RTCP
+Protocolo: udp
+Puerto destino: 8001
+Acción: accept
+
+Nombre: WebRTC-ICE
+Protocolo: udp
+Puerto destino: 8189
+Acción: accept
+
+# 6. Respuestas TCP (ephemeral ports)
+Nombre: TCP-Responses
+Protocolo: tcp
+Puerto destino: 32768-65535
+TCP flags: ack
+Acción: accept
+
+# ===== REGLAS SALIENTES (OUTGOING) =====
+
+# 1. DNS (obligatorio)
+Nombre: DNS-UDP
+Protocolo: udp
+Puerto destino: 53
+Acción: accept
+
+Nombre: DNS-TCP
+Protocolo: tcp
+Puerto destino: 53
+Acción: accept
+
+# 2. HTTP/HTTPS saliente
+Nombre: HTTP-Out
+Protocolo: tcp
+Puerto destino: 80
+Acción: accept
+
+Nombre: HTTPS-Out
+Protocolo: tcp
+Puerto destino: 443
+Acción: accept
+
+# 3. Streaming saliente (para redistribución)
+Nombre: RTMP-Out
+Protocolo: tcp
+Puerto destino: 1935
+Acción: accept
+
+Nombre: RTMPS-Out
+Protocolo: tcp
+Puerto destino: 443
+Acción: accept
+
+Nombre: SRT-Out
+Protocolo: udp
+Puerto destino: 8890
+Acción: accept
+
+# 4. Respuestas salientes
+Nombre: Outgoing-Responses
+Protocolo: tcp
+Puerto origen: 32768-65535
+TCP flags: ack
+Acción: accept
+
+# 5. NTP (sincronización de tiempo)
+Nombre: NTP
+Protocolo: udp
+Puerto destino: 123
+Acción: accept
+
+# =============================================================================
+# NOTAS IMPORTANTES:
+# =============================================================================
+# 1. Configura en orden de prioridad (más específicas primero)
+# 2. Activa "Hetzner Services" para servicios básicos
+# 3. El firewall es STATELESS - necesitas reglas bidireccionales
+# 4. Máximo 10 reglas por dirección
+# 5. Prueba después de cada cambio
+# =============================================================================

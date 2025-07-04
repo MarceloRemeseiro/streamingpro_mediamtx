@@ -276,7 +276,7 @@ export class PathManagerService implements IStreamPathManager {
           url.port = salida.puertoSRT.toString();
         } else if (!url.port) {
           // Solo usar puerto por defecto si no hay puerto específico NI en la URL
-          url.port = '9998';
+          url.port = '778';
         }
         
         baseUrl = url.toString();
