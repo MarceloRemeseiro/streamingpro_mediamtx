@@ -7,7 +7,7 @@
 export const config = {
   // Backend API
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api',
   },
   
   // MediaMTX endpoints

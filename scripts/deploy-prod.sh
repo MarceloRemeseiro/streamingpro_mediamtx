@@ -108,18 +108,13 @@ backup_database() {
 }
 
 clean_docker_resources() {
-    log "🧹 Limpiando recursos Docker obsoletos..."
+    log "🧹 Limpiando recursos Docker (modo seguro para entorno compartido)..."
     
-    # Parar y remover contenedores del proyecto
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans
+    # Usar 'down' con flags --rmi y --volumes es la forma más segura
+    # de limpiar SOLO los recursos de ESTE proyecto sin afectar a otros.
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans --rmi all --volumes
     
-    # Limpiar imágenes del proyecto
-    docker images | grep "streamingpro" | awk '{print $3}' | xargs -r docker rmi -f
-    
-    # Limpiar volumes huérfanos (solo los del proyecto)
-    docker volume ls | grep "streamingpro" | awk '{print $2}' | xargs -r docker volume rm
-    
-    success "Recursos Docker limpiados"
+    success "Recursos Docker del proyecto actual limpiados exitosamente"
 }
 
 build_images() {
